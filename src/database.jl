@@ -22,7 +22,7 @@ BSON("{ "ok" : 1.0 }")
 
 # C API
 
-* [`mongoc_database_command_simple`](http://mongoc.org/libmongoc/current/mongoc_database_command_simple.html)
+* [`mongoc_database_command_simple`](https://mongoc.org/libmongoc/current/mongoc_database_command_simple.html)
 """
 function command_simple(database::Database, command::BSON) :: BSON
     reply = BSON()
@@ -41,7 +41,7 @@ end
 
 Issue a command with write semantics.
 
-See http://mongoc.org/libmongoc/current/mongoc_database_read_write_command_with_opts.html.
+See https://mongoc.org/libmongoc/current/mongoc_database_read_write_command_with_opts.html.
 """
 function write_command(database::Database, command::BSON;
         options::Union{Nothing, BSON}=nothing) :: BSON
@@ -63,7 +63,7 @@ end
 
 Issue a command with read semantics.
 
-See http://mongoc.org/libmongoc/current/mongoc_database_read_command_with_opts.html.
+See https://mongoc.org/libmongoc/current/mongoc_database_read_command_with_opts.html.
 """
 function read_command(database::Database, command::BSON;
         options::Union{Nothing, BSON}=nothing) :: BSON

@@ -8,7 +8,7 @@ These flags are passed as optional argument
 for the aggregation function `Mongoc.aggregate`.
 
 This data type mirrors C struct `mongoc_query_flags_t`.
-See [libmongoc docs](http://mongoc.org/libmongoc/current/mongoc_query_flags_t.html)
+See [libmongoc docs](https://mongoc.org/libmongoc/current/mongoc_query_flags_t.html)
 for more information.
 
 # Constants

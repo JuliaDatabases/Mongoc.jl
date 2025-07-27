@@ -37,7 +37,7 @@ is sent to the server as part of the initial connection handshake.
 
 # C API
 
-* [`mongoc_client_set_appname`](http://mongoc.org/libmongoc/current/mongoc_client_set_appname.html).
+* [`mongoc_client_set_appname`](https://mongoc.org/libmongoc/current/mongoc_client_set_appname.html).
 """
 function set_appname!(client::Client, appname::String)
     ok = mongoc_client_set_appname(client.handle, appname)

@@ -61,7 +61,7 @@ const BSON_SUBTYPE_USER              = BSONSubType(0x80)
 #=
 BSONIter mirrors C struct bson_iter_t and can be allocated in the stack.
 
-According to [libbson documentation](http://mongoc.org/libbson/current/bson_iter_t.html),
+According to [libbson documentation](https://mongoc.org/libbson/current/bson_iter_t.html),
 it is meant to be used on the stack and can be discarded at any time
 as it contains no external allocation.
 The contents of the structure should be considered private
@@ -185,7 +185,7 @@ end
 
 """
 A `BSON` represents a document in *Binary JSON* format,
-defined at http://bsonspec.org/.
+defined at https://bsonspec.org/.
 
 In Julia, you can manipulate a `BSON` instance
 just like a `Dict`.
@@ -411,9 +411,9 @@ julia> Mongoc.as_json(document, canonical=true)
 
 # C API
 
-* [`bson_as_canonical_extended_json`](http://mongoc.org/libbson/current/bson_as_canonical_extended_json.html)
+* [`bson_as_canonical_extended_json`](https://mongoc.org/libbson/current/bson_as_canonical_extended_json.html)
 
-* [`bson_as_relaxed_extended_json`](http://mongoc.org/libbson/current/bson_as_relaxed_extended_json.html)
+* [`bson_as_relaxed_extended_json`](https://mongoc.org/libbson/current/bson_as_relaxed_extended_json.html)
 """
 function as_json(bson::BSON; canonical::Bool=false) :: String
     local bson_cstring::Cstring

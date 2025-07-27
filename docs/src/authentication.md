@@ -11,7 +11,7 @@ In this authentication mechanism, user and passwords are passed in the URI strin
 ### Enable Auth
 
 To use basic authentication mechanism, first enable authentication in the database,
-as described in the [MongoDB manual](http://mongoc.org/libmongoc/current/authentication.html).
+as described in the [MongoDB manual](https://mongoc.org/libmongoc/current/authentication.html).
 
 #### 1. Start MongoDB without access control
 
@@ -41,7 +41,7 @@ $ mongod --auth --dbpath ./db
 
 ### Connect and authenticate
 
-Pass the user and password in the URI, as described in [http://mongoc.org/libmongoc/current/authentication.html](http://mongoc.org/libmongoc/current/authentication.html).
+Pass the user and password in the URI, as described in [https://mongoc.org/libmongoc/current/authentication.html](https://mongoc.org/libmongoc/current/authentication.html).
 
 ```julia
 client = Mongoc.Client("mongodb://myUserAdmin:abc123@localhost/?authSource=admin")

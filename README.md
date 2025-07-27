@@ -8,13 +8,13 @@
 [![dev][docs-dev-img]][docs-dev-url]
 [![stable][docs-stable-img]][docs-stable-url]
 
-[license-img]: http://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square
+[license-img]: https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square
 [ci-img]: https://github.com/felipenoris/Mongoc.jl/workflows/CI/badge.svg
 [ci-url]: https://github.com/felipenoris/Mongoc.jl/actions?query=workflow%3ACI
 [appveyor-img]: https://img.shields.io/appveyor/ci/felipenoris/mongoc-jl/master.svg?logo=appveyor&label=Windows&style=flat-square
 [appveyor-url]: https://ci.appveyor.com/project/felipenoris/mongoc-jl/branch/master
 [codecov-img]: https://img.shields.io/codecov/c/github/felipenoris/Mongoc.jl/master.svg?label=codecov&style=flat-square
-[codecov-url]: http://codecov.io/github/felipenoris/Mongoc.jl?branch=master
+[codecov-url]: https://codecov.io/github/felipenoris/Mongoc.jl?branch=master
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg?style=flat-square
 [docs-dev-url]: https://felipenoris.github.io/Mongoc.jl/dev
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square
@@ -22,10 +22,10 @@
 
 **Mongoc.jl** is a [MongoDB](https://www.mongodb.com/) driver for the Julia Language.
 
-It is implemented as a thin wrapper around [libmongoc](http://mongoc.org/), the official client library for C applications.
+It is implemented as a thin wrapper around [libmongoc](https://mongoc.org/), the official client library for C applications.
 
-Given that [BSON](http://bsonspec.org/) is the document format for MongoDB,
-this package also implements a wrapper around [libbson](http://mongoc.org/libbson/current/index.html),
+Given that [BSON](https://bsonspec.org/) is the document format for MongoDB,
+this package also implements a wrapper around [libbson](https://mongoc.org/libbson/current/index.html),
 which provides a way to create and manipulate BSON documents.
 
 ## Requirements

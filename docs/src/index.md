@@ -5,11 +5,11 @@
 
 **Mongoc.jl** is a [MongoDB](https://www.mongodb.com/) driver for the Julia Language.
 
-It is implemented as a thin wrapper around [libmongoc](http://mongoc.org/),
+It is implemented as a thin wrapper around [libmongoc](https://mongoc.org/),
 the official client library for C applications.
 
-Given that [BSON](http://bsonspec.org/) is the document format for MongoDB,
-this package also implements a wrapper around [libbson](http://mongoc.org/libbson/current/index.html),
+Given that [BSON](https://bsonspec.org/) is the document format for MongoDB,
+this package also implements a wrapper around [libbson](https://mongoc.org/libbson/current/index.html),
 which provides a way to create and manipulate BSON documents.
 
 ## Requirements
@@ -59,6 +59,6 @@ and send a Pull Request.
 
 ## References
 
-* [libbson documentation](http://mongoc.org/libbson/current/index.html)
+* [libbson documentation](https://mongoc.org/libbson/current/index.html)
 
-* [libmongoc documentation](http://mongoc.org/libmongoc/current/index.html)
+* [libmongoc documentation](https://mongoc.org/libmongoc/current/index.html)
