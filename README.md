@@ -9,16 +9,16 @@
 [![stable][docs-stable-img]][docs-stable-url]
 
 [license-img]: https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square
-[ci-img]: https://github.com/felipenoris/Mongoc.jl/workflows/CI/badge.svg
-[ci-url]: https://github.com/felipenoris/Mongoc.jl/actions?query=workflow%3ACI
+[ci-img]: https://github.com/JuliaDatabases/Mongoc.jl/workflows/CI/badge.svg
+[ci-url]: https://github.com/JuliaDatabases/Mongoc.jl/actions?query=workflow%3ACI
 [appveyor-img]: https://img.shields.io/appveyor/ci/felipenoris/mongoc-jl/master.svg?logo=appveyor&label=Windows&style=flat-square
 [appveyor-url]: https://ci.appveyor.com/project/felipenoris/mongoc-jl/branch/master
-[codecov-img]: https://img.shields.io/codecov/c/github/felipenoris/Mongoc.jl/master.svg?label=codecov&style=flat-square
-[codecov-url]: https://codecov.io/github/felipenoris/Mongoc.jl?branch=master
+[codecov-img]: https://img.shields.io/codecov/c/github/JuliaDatabases/Mongoc.jl/master.svg?label=codecov&style=flat-square
+[codecov-url]: https://codecov.io/github/JuliaDatabases/Mongoc.jl?branch=master
 [docs-dev-img]: https://img.shields.io/badge/docs-dev-blue.svg?style=flat-square
-[docs-dev-url]: https://felipenoris.github.io/Mongoc.jl/dev
+[docs-dev-url]: https://juliadatabases.org/Mongoc.jl/dev
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg?style=flat-square
-[docs-stable-url]: https://felipenoris.github.io/Mongoc.jl/stable
+[docs-stable-url]: https://juliadatabases.org/Mongoc.jl/stable
 
 **Mongoc.jl** is a [MongoDB](https://www.mongodb.com/) driver for the Julia Language.
 
@@ -48,11 +48,11 @@ julia> Pkg.add("Mongoc")
 
 ## Documentation
 
-The documentation for this package is hosted at https://felipenoris.github.io/Mongoc.jl/stable.
+The documentation for this package is hosted at <https://juliadatabases.org/Mongoc.jl/stable>.
 
 ## License
 
-The source code for the package `Mongoc.jl` is licensed under the [MIT License](https://github.com/felipenoris/Mongoc.jl/blob/master/LICENSE).
+The source code for the package `Mongoc.jl` is licensed under the [MIT License](https://github.com/JuliaDatabases/Mongoc.jl/blob/master/LICENSE).
 
 This repository distributes binary assets built from [mongo-c-driver](https://github.com/mongodb/mongo-c-driver) source code,
 which is licensed under [Apache-2.0](https://github.com/mongodb/mongo-c-driver/blob/master/COPYING).

@@ -17,6 +17,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/felipenoris/Mongoc.jl.git",
+    repo = "github.com/JuliaDatabases/Mongoc.jl.git",
     target = "build",
 )
