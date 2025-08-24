@@ -88,7 +88,7 @@ is created in the first time you insert a document in it.
 
 ## BSON Documents
 
-[BSON](http://bsonspec.org/) is the document format for MongoDB.
+[BSON](https://bsonspec.org/) is the document format for MongoDB.
 
 To create a BSON document instance in **Mongoc.jl** just use Dictionary syntax,
 using `String`s as keys.
@@ -382,7 +382,7 @@ function find_contract_codes(collection, criteria::Dict=Dict()) :: Vector{String
 end
 ```
 
-Check the [libmongoc documentation for options field](http://mongoc.org/libmongoc/current/mongoc_collection_find_with_opts.html) for details.
+Check the [libmongoc documentation for options field](https://mongoc.org/libmongoc/current/mongoc_collection_find_with_opts.html) for details.
 
 ## Counting Documents
 
@@ -471,7 +471,7 @@ BSON("{ "_id" : "B212", "value" : 200.0 }")
 ## "distinct" command
 
 This example demonstrates the `distinct` command,
-based on [libmongoc docs](http://mongoc.org/libmongoc/current/distinct-mapreduce.html).
+based on [libmongoc docs](https://mongoc.org/libmongoc/current/distinct-mapreduce.html).
 
 ```julia
 import Mongoc
@@ -602,4 +602,4 @@ reply = Mongoc.write_command(database, create_indexes_cmd)
 @assert reply["ok"] == 1
 ```
 
-See also: http://mongoc.org/libmongoc/current/create-indexes.html.
+See also: https://mongoc.org/libmongoc/current/create-indexes.html.

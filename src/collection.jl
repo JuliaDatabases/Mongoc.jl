@@ -262,7 +262,7 @@ function find_contract_codes(collection, criteria::Dict=Dict()) :: Vector{String
 end
 ```
 
-Check the [libmongoc documentation](http://mongoc.org/libmongoc/current/mongoc_collection_find_with_opts.html)
+Check the [libmongoc documentation](https://mongoc.org/libmongoc/current/mongoc_collection_find_with_opts.html)
 for more information.
 """
 function find(collection::Collection, bson_filter::BSON=BSON();
@@ -402,9 +402,9 @@ end
 Drops `database` or `collection`.
 
 For information about `opts` argument, check the libmongoc documentation for
-[database drop](http://mongoc.org/libmongoc/current/mongoc_database_drop_with_opts.html)
+[database drop](https://mongoc.org/libmongoc/current/mongoc_database_drop_with_opts.html)
 or
-[collection drop](http://mongoc.org/libmongoc/current/mongoc_collection_drop_with_opts.html).
+[collection drop](https://mongoc.org/libmongoc/current/mongoc_collection_drop_with_opts.html).
 """
 function drop(collection::Collection, opts::Union{Nothing, BSON}=nothing)
     opts_handle = opts == nothing ? C_NULL : opts.handle
@@ -499,7 +499,7 @@ for `flags` argument.
 
 # C API
 
-* [mongoc_collection_find_and_modify](http://mongoc.org/libmongoc/current/mongoc_collection_find_and_modify.html).
+* [mongoc_collection_find_and_modify](https://mongoc.org/libmongoc/current/mongoc_collection_find_and_modify.html).
 """
 function find_and_modify(collection::Collection, query::BSON;
             update::Union{Nothing, BSON}=nothing,
