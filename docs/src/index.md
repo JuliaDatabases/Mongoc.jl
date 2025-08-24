@@ -33,12 +33,12 @@ julia> Pkg.add("Mongoc")
 ## Source Code
 
 The source code for this package is hosted at
-[https://github.com/felipenoris/Mongoc.jl](https://github.com/felipenoris/Mongoc.jl).
+[https://github.com/JuliaDatabases/Mongoc.jl](https://github.com/JuliaDatabases/Mongoc.jl).
 
 ## License
 
 The source code for the package **Mongoc.jl** is licensed under
-the [MIT License](https://github.com/felipenoris/Mongoc.jl/blob/master/LICENSE).
+the [MIT License](https://github.com/JuliaDatabases/Mongoc.jl/blob/master/LICENSE).
 
 This repository distributes binary assets built from
 [mongo-c-driver](https://github.com/mongodb/mongo-c-driver) source code,
@@ -48,13 +48,13 @@ which is licensed under [Apache-2.0](https://github.com/mongodb/mongo-c-driver/b
 
 If you're having any trouble, have any questions about this package
 or want to ask for a new feature,
-just open a new [issue](https://github.com/felipenoris/Mongoc.jl/issues).
+just open a new [issue](https://github.com/JuliaDatabases/Mongoc.jl/issues).
 
 ## Contributing
 
 Contributions are always welcome!
 
-To contribute, fork the project on [GitHub](https://github.com/felipenoris/Mongoc.jl)
+To contribute, fork the project on [GitHub](https://github.com/JuliaDatabases/Mongoc.jl)
 and send a Pull Request.
 
 ## References

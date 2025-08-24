@@ -145,10 +145,10 @@ function Client(pool::ClientPool; try_pop::Bool=false, pop_timeout_secs::Real=10
         client_handle = mongoc_client_pool_try_pop(pool.handle)
     else
         # NOTE: The blocking mongoc_client_pop() can deadlock the process
-        #       during GC, see https://github.com/felipenoris/Mongoc.jl/issues/84.
+        #       during GC, see https://github.com/JuliaDatabases/Mongoc.jl/issues/84.
         #       Would prefer to use @threadcall to avoid this issue, but
         #       that appears to generate exceptions
-        #       (see https://github.com/felipenoris/Mongoc.jl/issues/84#issuecomment-926433352).
+        #       (see https://github.com/JuliaDatabases/Mongoc.jl/issues/84#issuecomment-926433352).
         #       Periodically polling as a temporary workaround.
 
         waiting_time = 0.0

@@ -2,7 +2,7 @@ name = "Mongoc"
 uuid = "4fe8b98c-fc19-5c23-8ec2-168ff83495f2"
 license = "MIT"
 authors = ["Felipe Noronha <felipenoris@gmail.com>"]
-repo = "https://github.com/felipenoris/Mongoc.jl.git"
+repo = "https://github.com/JuliaDatabases/Mongoc.jl.git"
 version = "0.10.0"
 
 [deps]
