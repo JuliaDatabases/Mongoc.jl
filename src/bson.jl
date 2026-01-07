@@ -4,10 +4,10 @@
 #
 
 # BSONType mirrors C enum bson_type_t.
-primitive type BSONType 8 end # 1 byte
+primitive type BSONType 32 end
 
-Base.convert(::Type{T}, t::BSONType) where {T<:Number} = reinterpret(UInt8, t)
-Base.convert(::Type{BSONType}, n::T) where {T<:Number} = reinterpret(BSONType, n)
+Base.convert(::Type{T}, t::BSONType) where {T<:Number} = T(reinterpret(UInt32, t))
+Base.convert(::Type{BSONType}, n::T) where {T<:Number} = reinterpret(BSONType, UInt32(n))
 BSONType(u::UInt8) = convert(BSONType, u)
 
 #
@@ -40,10 +40,10 @@ const BSON_TYPE_MINKEY     = BSONType(0xFF)
 
 
 # BSONSubType mirrors C enum bson_subtype_t.
-primitive type BSONSubType 8 end
+primitive type BSONSubType 32 end
 
-Base.convert(::Type{T}, t::BSONSubType) where {T<:Number} = reinterpret(UInt8, t)
-Base.convert(::Type{BSONSubType}, n::T) where {T<:Number} = reinterpret(BSONSubType, n)
+Base.convert(::Type{T}, t::BSONSubType) where {T<:Number} = T(reinterpret(UInt32, t))
+Base.convert(::Type{BSONSubType}, n::T) where {T<:Number} = reinterpret(BSONSubType, UInt32(n))
 BSONSubType(u::UInt8) = convert(BSONSubType, u)
 
 #
