@@ -113,6 +113,26 @@ using Distributed
         @test bson["uuid2"] == uuid
     end
 
+    @testset "Binary data iteration (#145)" begin
+        # This would segfault on Julia 1.12 before the enum size fix
+        b = Mongoc.BSON("a" => UInt8[0x1, 0x2, 0x3])
+
+        # Test iteration
+        result = iterate(b)
+        @test result !== nothing
+        (pair, state) = result
+        @test pair.first == "a"
+        @test pair.second == UInt8[0x1, 0x2, 0x3]
+
+        # Test Dict conversion (uses iteration internally)
+        d = Dict(b)
+        @test d["a"] == UInt8[0x1, 0x2, 0x3]
+
+        # Test as_dict
+        d2 = Mongoc.as_dict(b)
+        @test d2["a"] == UInt8[0x1, 0x2, 0x3]
+    end
+
     @testset "BSON key/values itr support" begin
         bson = Mongoc.BSON()
         bson["hey"] = 10
