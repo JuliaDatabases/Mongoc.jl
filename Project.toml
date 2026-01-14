@@ -3,7 +3,7 @@ uuid = "4fe8b98c-fc19-5c23-8ec2-168ff83495f2"
 license = "MIT"
 authors = ["Felipe Noronha <felipenoris@gmail.com>"]
 repo = "https://github.com/JuliaDatabases/Mongoc.jl.git"
-version = "0.10.0"
+version = "0.10.1"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
