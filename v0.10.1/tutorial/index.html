@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Tutorial · Mongoc.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">Mongoc.jl</a></span></div><form class="docs-search" action="../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li class="is-active"><a class="tocitem" href>Tutorial</a><ul class="internal"><li><a class="tocitem" href="#Setup"><span>Setup</span></a></li><li><a class="tocitem" href="#Connecting-to-MongoDB"><span>Connecting to MongoDB</span></a></li><li><a class="tocitem" href="#Getting-a-Database"><span>Getting a Database</span></a></li><li><a class="tocitem" href="#Getting-a-Collection"><span>Getting a Collection</span></a></li><li><a class="tocitem" href="#BSON-Documents"><span>BSON Documents</span></a></li><li><a class="tocitem" href="#Read/Write-BSON-documents-from/to-IO-Stream"><span>Read/Write BSON documents from/to IO Stream</span></a></li><li><a class="tocitem" href="#Read-BSON-Documents-from-a-JSON-File"><span>Read BSON Documents from a JSON File</span></a></li><li><a class="tocitem" href="#Inserting-Documents"><span>Inserting Documents</span></a></li><li><a class="tocitem" href="#Querying-Documents"><span>Querying Documents</span></a></li><li><a class="tocitem" href="#Project-fields-to-Return-from-Query"><span>Project fields to Return from Query</span></a></li><li><a class="tocitem" href="#Counting-Documents"><span>Counting Documents</span></a></li><li><a class="tocitem" href="#Aggregation-and-Map-Reduce"><span>Aggregation and Map-Reduce</span></a></li><li><a class="tocitem" href="#&quot;distinct&quot;-command"><span>&quot;distinct&quot; command</span></a></li><li><a class="tocitem" href="#Find-and-Modify"><span>Find and Modify</span></a></li><li><a class="tocitem" href="#Create-Index"><span>Create Index</span></a></li></ul></li><li><a class="tocitem" href="../crud/">CRUD Operations</a></li><li><a class="tocitem" href="../authentication/">Authentication</a></li><li><a class="tocitem" href="../transaction/">Transactions</a></li><li><a class="tocitem" href="../connection_pool/">Connection Pool</a></li><li><a class="tocitem" href="../gridfs/">GridFS</a></li><li><a class="tocitem" href="../logging/">Logging</a></li><li><a class="tocitem" href="../api/">API Reference</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Tutorial</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Tutorial</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/JuliaDatabases/Mongoc.jl/blob/master/docs/src/tutorial.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Tutorial"><a class="docs-heading-anchor" href="#Tutorial">Tutorial</a><a id="Tutorial-1"></a><a class="docs-heading-anchor-permalink" href="#Tutorial" title="Permalink"></a></h1><p>This tutorial illustrates common use cases for accessing a MongoDB database with <strong>Mongoc.jl</strong> package.</p><h2 id="Setup"><a class="docs-heading-anchor" href="#Setup">Setup</a><a id="Setup-1"></a><a class="docs-heading-anchor-permalink" href="#Setup" title="Permalink"></a></h2><p>First, make sure you have <strong>Mongoc.jl</strong> package installed.</p><pre><code class="language-julia hljs">julia&gt; using Pkg
+
+julia&gt; Pkg.add(&quot;Mongoc&quot;)</code></pre><p>The following tutorial assumes that a MongoDB instance is running on the default host and port: <code>localhost:27017</code>.</p><p>To start a new server instance on the default location use the following command on your shell.</p><pre><code class="language-shell hljs">$ mkdir db
+
+$ mongod --dbpath ./db</code></pre><h2 id="Connecting-to-MongoDB"><a class="docs-heading-anchor" href="#Connecting-to-MongoDB">Connecting to MongoDB</a><a id="Connecting-to-MongoDB-1"></a><a class="docs-heading-anchor-permalink" href="#Connecting-to-MongoDB" title="Permalink"></a></h2><p>Connect to a MongoDB instance using a <code>Mongoc.Client</code>. Use the <a href="https://docs.mongodb.com/manual/reference/connection-string/">MongoDB URI format</a> to set the server location.</p><pre><code class="language-julia hljs">julia&gt; import Mongoc
+
+julia&gt; client = Mongoc.Client(&quot;mongodb://localhost:27017&quot;)
+Client(URI(&quot;mongodb://localhost:27017&quot;))</code></pre><p>As a shorthand, you can also use:</p><pre><code class="language-julia hljs">julia&gt; client = Mongoc.Client(&quot;localhost&quot;, 27017)</code></pre><p>To connect to the server at the default location <code>localhost:27017</code> you can use the <code>Mongoc.Client</code> constructor with no arguments.</p><pre><code class="language-julia hljs">julia&gt; client = Mongoc.Client()</code></pre><p>One thing to keep in mind about MongoDB is that operations are usually lazy. So you don&#39;t actually connect to the database until you need to issue a command or query.</p><p>If you need to check the connection status before sending commands, use <code>Mongoc.ping(client)</code> to ping the server.</p><pre><code class="language-julia hljs">julia&gt; Mongoc.ping(client)
+BSON(&quot;{ &quot;ok&quot; : 1.0 }&quot;)</code></pre><h2 id="Getting-a-Database"><a class="docs-heading-anchor" href="#Getting-a-Database">Getting a Database</a><a id="Getting-a-Database-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-a-Database" title="Permalink"></a></h2><p>A MongoDB instance consists on a set of independent databases. You get a Database reference using the following command.</p><pre><code class="language-julia hljs">julia&gt; database = client[&quot;my-database&quot;]
+Database(Client(URI(&quot;mongodb://localhost:27017&quot;)), &quot;my-database&quot;)</code></pre><p>If <code>&quot;my-database&quot;</code> does not exist on your MongoDB instance, it will be created in the first time you insert a document in it.</p><h2 id="Getting-a-Collection"><a class="docs-heading-anchor" href="#Getting-a-Collection">Getting a Collection</a><a id="Getting-a-Collection-1"></a><a class="docs-heading-anchor-permalink" href="#Getting-a-Collection" title="Permalink"></a></h2><p>A Collection is a set of documents in a MongoDB database. You get a collection reference using the following command.</p><pre><code class="language-julia hljs">julia&gt; collection = database[&quot;my-collection&quot;]
+Collection(Database(Client(URI(&quot;mongodb://localhost:27017&quot;)), &quot;my-database&quot;), &quot;my-collection&quot;)</code></pre><p>If it does not exist inside your database, the Collection is created in the first time you insert a document in it.</p><h2 id="BSON-Documents"><a class="docs-heading-anchor" href="#BSON-Documents">BSON Documents</a><a id="BSON-Documents-1"></a><a class="docs-heading-anchor-permalink" href="#BSON-Documents" title="Permalink"></a></h2><p><a href="https://bsonspec.org/">BSON</a> is the document format for MongoDB.</p><p>To create a BSON document instance in <strong>Mongoc.jl</strong> just use Dictionary syntax, using <code>String</code>s as keys.</p><pre><code class="language-julia hljs">julia&gt; document = Mongoc.BSON()
+
+julia&gt; document[&quot;name&quot;] = &quot;Felipe&quot;
+
+julia&gt; document[&quot;age&quot;] = 35
+
+julia&gt; document[&quot;preferences&quot;] = [ &quot;Music&quot;, &quot;Computer&quot;, &quot;Photography&quot; ]
+
+julia&gt; document[&quot;null_value&quot;] = nothing # maps to BSON null value
+
+julia&gt; using Dates; document[&quot;details&quot;] = Dict(&quot;birth date&quot; =&gt; DateTime(1983, 4, 16), &quot;location&quot; =&gt; &quot;Rio de Janeiro&quot;)
+
+julia&gt; using UUIDs; document[&quot;id&quot;] = uuid4()</code></pre><p>As another example:</p><pre><code class="language-julia hljs">julia&gt; document = Mongoc.BSON(&quot;a&quot; =&gt; 1, &quot;b&quot; =&gt; &quot;field_b&quot;, &quot;c&quot; =&gt; [1, 2, 3])
+BSON(&quot;{ &quot;a&quot; : 1, &quot;b&quot; : &quot;field_b&quot;, &quot;c&quot; : [ 1, 2, 3 ] }&quot;)</code></pre><p>You can also create a BSON document from a JSON string.</p><pre><code class="language-julia hljs">julia&gt; document = Mongoc.BSON(&quot;&quot;&quot;{ &quot;hey&quot; : &quot;you&quot; }&quot;&quot;&quot;)</code></pre><p>And also from a Dictionary.</p><pre><code class="language-julia hljs">julia&gt; dict = Dict(&quot;hey&quot; =&gt; &quot;you&quot;)
+Dict{String,String} with 1 entry:
+  &quot;hey&quot; =&gt; &quot;you&quot;
+
+julia&gt; document = Mongoc.BSON(dict)
+BSON(&quot;{ &quot;hey&quot; : &quot;you&quot; }&quot;)</code></pre><p>Reading data from a BSON is like reading from a <code>Dict</code>.</p><pre><code class="language-julia hljs">julia&gt; document = Mongoc.BSON(&quot;a&quot; =&gt; 1, &quot;b&quot; =&gt; &quot;field_b&quot;, &quot;c&quot; =&gt; [1, 2, 3])
+BSON(&quot;{ &quot;a&quot; : 1, &quot;b&quot; : &quot;field_b&quot;, &quot;c&quot; : [ 1, 2, 3 ] }&quot;)
+
+julia&gt; document[&quot;a&quot;]
+1
+
+julia&gt; document[&quot;b&quot;]
+&quot;field_b&quot;</code></pre><p>Like a <code>Dict</code>, you can iterate thru BSON&#39;s <code>(key, value)</code> pairs, like so:</p><pre><code class="language-julia hljs">julia&gt; for (k, v) in document
+           println(&quot;[$k] = $v&quot;)
+       end
+[a] = 1
+[b] = field_b
+[c] = Any[1, 2, 3]</code></pre><p>To convert a BSON to a JSON string, use:</p><pre><code class="language-julia hljs">julia&gt; Mongoc.as_json(document)
+&quot;{ \&quot;name\&quot; : \&quot;Felipe\&quot;, \&quot;age\&quot; : 35, \&quot;preferences\&quot; : [ \&quot;Music\&quot;, \&quot;Computer\&quot;, \&quot;Photography\&quot; ], \&quot;null_value\&quot; : null, \&quot;details\&quot; : { \&quot;location\&quot; : \&quot;Rio de Janeiro\&quot;, \&quot;birth date\&quot; : { \&quot;\$date\&quot; : \&quot;1983-04-16T00:00:00Z\&quot; } } }&quot;</code></pre><p>To convert a BSON document to a Dictionary, use <code>Mongoc.as_dict</code>.</p><pre><code class="language-julia hljs">julia&gt; Mongoc.as_dict(document)
+Dict{Any,Any} with 1 entry:
+  &quot;hey&quot; =&gt; &quot;you&quot;</code></pre><h2 id="Read/Write-BSON-documents-from/to-IO-Stream"><a class="docs-heading-anchor" href="#Read/Write-BSON-documents-from/to-IO-Stream">Read/Write BSON documents from/to IO Stream</a><a id="Read/Write-BSON-documents-from/to-IO-Stream-1"></a><a class="docs-heading-anchor-permalink" href="#Read/Write-BSON-documents-from/to-IO-Stream" title="Permalink"></a></h2><p>You can read and write BSON documents in binary format to IO streams.</p><h3 id="High-level-API"><a class="docs-heading-anchor" href="#High-level-API">High-level API</a><a id="High-level-API-1"></a><a class="docs-heading-anchor-permalink" href="#High-level-API" title="Permalink"></a></h3><p>BSON documents can be serialized using Julia&#39;s <code>Serialization</code> stdlib. This means that BSON documents can also be shared among Julia workers using Julia&#39;s <code>Distributed</code> stdlib.</p><pre><code class="language-julia hljs">
+using Test, Mongoc
+
+@testset &quot;read/write single BSON&quot; begin
+    doc = Mongoc.BSON(&quot;a&quot; =&gt; 1)
+    io = IOBuffer()
+    write(io, doc)
+    seekstart(io)
+    doc2 = read(io, Mongoc.BSON)
+    @test doc2[&quot;a&quot;] == 1
+end
+
+addprocs(1)
+@everywhere using Mongoc
+
+@testset &quot;Serialize BSON&quot; begin
+    f = @spawn Mongoc.BSON(&quot;a&quot; =&gt; 1)
+    bson = fetch(f)
+    @test bson[&quot;a&quot;] == 1
+end</code></pre><h3 id="Low-level-API"><a class="docs-heading-anchor" href="#Low-level-API">Low-level API</a><a id="Low-level-API-1"></a><a class="docs-heading-anchor-permalink" href="#Low-level-API" title="Permalink"></a></h3><p>The following example shows how to:</p><ol><li>Create a vector of BSON documents.</li><li>Save the vector to a file.</li><li>Read back the vector of BSON documents from a file.</li></ol><pre><code class="language-julia hljs">using Test, Mongoc
+
+filepath = &quot;data.bson&quot;
+list = Vector{Mongoc.BSON}()
+
+let
+    src = Mongoc.BSON()
+    src[&quot;id&quot;] = 1
+    src[&quot;name&quot;] = &quot;1st&quot;
+    push!(list, src)
+end
+
+let
+    src = Mongoc.BSON()
+    src[&quot;id&quot;] = 2
+    src[&quot;name&quot;] = &quot;2nd&quot;
+    push!(list, src)
+end
+
+open(filepath, &quot;w&quot;) do io
+    Mongoc.write_bson(io, list)
+end
+
+list_from_file = Mongoc.read_bson(filepath)
+@test length(list_from_file) == 2
+
+let
+    fst_bson = list_from_file[1]
+    @test fst_bson[&quot;id&quot;] == 1
+    @test fst_bson[&quot;name&quot;] == &quot;1st&quot;
+end
+
+let
+    sec_bson = list_from_file[2]
+    @test sec_bson[&quot;id&quot;] == 2
+    @test sec_bson[&quot;name&quot;] == &quot;2nd&quot;
+end</code></pre><h2 id="Read-BSON-Documents-from-a-JSON-File"><a class="docs-heading-anchor" href="#Read-BSON-Documents-from-a-JSON-File">Read BSON Documents from a JSON File</a><a id="Read-BSON-Documents-from-a-JSON-File-1"></a><a class="docs-heading-anchor-permalink" href="#Read-BSON-Documents-from-a-JSON-File" title="Permalink"></a></h2><p>Given a JSON file <code>docs.json</code> with the following content:</p><pre><code class="language-json hljs">{ &quot;num&quot; : 1, &quot;str&quot; : &quot;two&quot; }
+{ &quot;num&quot; : 2, &quot;str&quot; : &quot;three&quot; }</code></pre><p>This file can be read using a <code>Mongoc.BSONJSONReader</code>. A high-level function <code>Mongoc.read_bson_from_json</code> is also available.</p><p>Notice how strange the json format is: it is a sequence of JSON documents without separator. Adding a separator (<code>,</code>) between JSON documents will duplicate the BSON fields. Also, if you enclose the whole file with a vector of JSONs, a single BSON will be returned with a vector of elements.</p><h3 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h3><pre><code class="language-julia hljs">vec_of_bsons = Mongoc.read_bson_from_json(&quot;docs.json&quot;)</code></pre><pre><code class="language-julia hljs">reader = Mongoc.BSONJSONReader(&quot;docs.json&quot;)
+for bson in reader
+    println(bson)
+end</code></pre><h2 id="Inserting-Documents"><a class="docs-heading-anchor" href="#Inserting-Documents">Inserting Documents</a><a id="Inserting-Documents-1"></a><a class="docs-heading-anchor-permalink" href="#Inserting-Documents" title="Permalink"></a></h2><p>To insert a single document into a collection, just <code>Base.push!</code> a BSON document to it. The result of this operation wraps the server reply and the inserted oid.</p><pre><code class="language-julia hljs">julia&gt; document = Mongoc.BSON(&quot;&quot;&quot;{ &quot;hey&quot; : &quot;you&quot; }&quot;&quot;&quot;)
+BSON(&quot;{ &quot;hey&quot; : &quot;you&quot; }&quot;)
+
+julia&gt; result = push!(collection, document)
+Mongoc.InsertOneResult{Mongoc.BSONObjectId}(BSON(&quot;{ &quot;insertedCount&quot; : 1 }&quot;), BSONObjectId(&quot;5c9fdb5d11c3dd04a83ba6c2&quot;))
+
+julia&gt; result.inserted_oid
+BSONObjectId(&quot;5c9fdb5d11c3dd04a83ba6c2&quot;)</code></pre><p>Use <code>Base.append!</code> to insert a vector of documents to a collection. The result of this operation also wraps the server reply and the inserted oids.</p><pre><code class="language-julia hljs">julia&gt; doc1 = Mongoc.BSON(&quot;&quot;&quot;{ &quot;hey&quot; : &quot;you&quot;, &quot;out&quot; : &quot;there&quot; }&quot;&quot;&quot;)
+BSON(&quot;{ &quot;hey&quot; : &quot;you&quot;, &quot;out&quot; : &quot;there&quot; }&quot;)
+
+julia&gt; doc2 = Mongoc.BSON(&quot;&quot;&quot;{ &quot;hey&quot; : &quot;others&quot;, &quot;in the&quot; : &quot;cold&quot; }&quot;&quot;&quot;)
+BSON(&quot;{ &quot;hey&quot; : &quot;others&quot;, &quot;in the&quot; : &quot;cold&quot; }&quot;)
+
+julia&gt; vector = [ doc1, doc2 ]
+2-element Array{Mongoc.BSON,1}:
+ BSON(&quot;{ &quot;hey&quot; : &quot;you&quot;, &quot;out&quot; : &quot;there&quot; }&quot;)
+ BSON(&quot;{ &quot;hey&quot; : &quot;others&quot;, &quot;in the&quot; : &quot;cold&quot; }&quot;)
+
+julia&gt; append!(collection, vector)
+Mongoc.BulkOperationResult{Union{Nothing, BSONObjectId}}(BSON(&quot;{ &quot;nInserted&quot; : 2, &quot;nMatched&quot; : 0, &quot;nModified&quot; : 0, &quot;nRemoved&quot; : 0, &quot;nUpserted&quot; : 0, &quot;writeErrors&quot; : [  ] }&quot;), 0x00000001, Union{Nothing, BSONObjectId}[BSONObjectId(&quot;5c9fdbab11c3dd04a83ba6c3&quot;), BSONObjectId(&quot;5c9fdbab11c3dd04a83ba6c4&quot;)])</code></pre><h2 id="Querying-Documents"><a class="docs-heading-anchor" href="#Querying-Documents">Querying Documents</a><a id="Querying-Documents-1"></a><a class="docs-heading-anchor-permalink" href="#Querying-Documents" title="Permalink"></a></h2><p>To query a single document, use <code>Mongoc.find_one</code>. Pass a BSON argument as a query filter.</p><pre><code class="language-julia hljs">julia&gt; document = Mongoc.find_one(collection, Mongoc.BSON(&quot;&quot;&quot;{ &quot;hey&quot; : &quot;you&quot; }&quot;&quot;&quot;))
+BSON(&quot;{ &quot;_id&quot; : { &quot;$oid&quot; : &quot;5b9ef9cc11c3dd1da14675c3&quot; }, &quot;hey&quot; : &quot;you&quot; }&quot;)</code></pre><p>To iterate all documents from a collection, just use a for loop on a <code>collection</code>.</p><pre><code class="language-julia hljs">julia&gt; for document in collection
+        println(document)
+       end
+BSON(&quot;{ &quot;_id&quot; : { &quot;$oid&quot; : &quot;5b9f02fb11c3dd1f4f3e26e5&quot; }, &quot;hey&quot; : &quot;you&quot;, &quot;out&quot; : &quot;there&quot; }&quot;)
+BSON(&quot;{ &quot;_id&quot; : { &quot;$oid&quot; : &quot;5b9f02fb11c3dd1f4f3e26e6&quot; }, &quot;hey&quot; : &quot;others&quot;, &quot;in the&quot; : &quot;cold&quot; }&quot;)</code></pre><p>To query multiple documents, use <code>Mongoc.find</code>. Pass a BSON query argument as a query filter. It returns a iterator of BSON documents that can be read using a <code>for</code> loop.</p><pre><code class="language-julia hljs">julia&gt; for document in Mongoc.find(collection, Mongoc.BSON(&quot;&quot;&quot;{ &quot;in the&quot; : &quot;cold&quot; }&quot;&quot;&quot;))
+           println(document)
+       end
+BSON(&quot;{ &quot;_id&quot; : { &quot;$oid&quot; : &quot;5b9f02fb11c3dd1f4f3e26e6&quot; }, &quot;hey&quot; : &quot;others&quot;, &quot;in the&quot; : &quot;cold&quot; }&quot;)</code></pre><p>Use <code>Base.collect</code> to convert the result of <code>Mongoc.find</code> into a vector of BSON documents.</p><p>Also, applying <code>Base.collect</code> to a Collection gathers all documents in the collection.</p><pre><code class="language-julia hljs">julia&gt; collect(collection)
+2-element Array{Mongoc.BSON,1}:
+BSON(&quot;{ &quot;_id&quot; : { &quot;$oid&quot; : &quot;5b9f02fb11c3dd1f4f3e26e5&quot; }, &quot;hey&quot; : &quot;you&quot;, &quot;out&quot; : &quot;there&quot; }&quot;)
+BSON(&quot;{ &quot;_id&quot; : { &quot;$oid&quot; : &quot;5b9f02fb11c3dd1f4f3e26e6&quot; }, &quot;hey&quot; : &quot;others&quot;, &quot;in the&quot; : &quot;cold&quot; }&quot;)</code></pre><h2 id="Project-fields-to-Return-from-Query"><a class="docs-heading-anchor" href="#Project-fields-to-Return-from-Query">Project fields to Return from Query</a><a id="Project-fields-to-Return-from-Query-1"></a><a class="docs-heading-anchor-permalink" href="#Project-fields-to-Return-from-Query" title="Permalink"></a></h2><p>To select which fields you want a query to return, use a <code>projection</code> command in the <code>options</code> argument of <code>Mongoc.find</code> or <code>Mongoc.find_one</code>.</p><p>As an example:</p><pre><code class="language-julia hljs">function find_contract_codes(collection, criteria::Dict=Dict()) :: Vector{String}
+    result = Vector{String}()
+
+    let
+        bson_filter = Mongoc.BSON(criteria)
+        bson_options = Mongoc.BSON(&quot;&quot;&quot;{ &quot;projection&quot; : { &quot;_id&quot; : true }, &quot;sort&quot; : { &quot;_id&quot; : 1 } }&quot;&quot;&quot;)
+        for bson_document in Mongoc.find(collection, bson_filter, options=bson_options)
+            push!(result, bson_document[&quot;_id&quot;])
+        end
+    end
+
+    return result
+end</code></pre><p>Check the <a href="https://mongoc.org/libmongoc/current/mongoc_collection_find_with_opts.html">libmongoc documentation for options field</a> for details.</p><h2 id="Counting-Documents"><a class="docs-heading-anchor" href="#Counting-Documents">Counting Documents</a><a id="Counting-Documents-1"></a><a class="docs-heading-anchor-permalink" href="#Counting-Documents" title="Permalink"></a></h2><p>Use <code>Base.length</code> function to count the number of documents in a collection. Pass a BSON argument as a query filter.</p><pre><code class="language-julia hljs">julia&gt; length(collection)
+2
+
+julia&gt; length(collection, Mongoc.BSON(&quot;&quot;&quot;{ &quot;in the&quot; : &quot;cold&quot; }&quot;&quot;&quot;))
+1</code></pre><h2 id="Aggregation-and-Map-Reduce"><a class="docs-heading-anchor" href="#Aggregation-and-Map-Reduce">Aggregation and Map-Reduce</a><a id="Aggregation-and-Map-Reduce-1"></a><a class="docs-heading-anchor-permalink" href="#Aggregation-and-Map-Reduce" title="Permalink"></a></h2><p>Use <code>Mongoc.aggregate</code> to execute an aggregation command.</p><p>The following reproduces the example from the <a href="https://docs.mongodb.com/manual/aggregation/">MongoDB Tutorial</a>.</p><pre><code class="language-julia hljs">docs = [
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 500, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 250, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;B212&quot;, &quot;amount&quot; : 200, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 300, &quot;status&quot; : &quot;D&quot; }&quot;&quot;&quot;)
+]
+
+collection = client[&quot;my-database&quot;][&quot;aggregation-collection&quot;]
+append!(collection, docs)
+
+# Sets the pipeline command
+bson_pipeline = Mongoc.BSON(&quot;&quot;&quot;
+    [
+        { &quot;\$match&quot; : { &quot;status&quot; : &quot;A&quot; } },
+        { &quot;\$group&quot; : { &quot;_id&quot; : &quot;\$cust_id&quot;, &quot;total&quot; : { &quot;\$sum&quot; : &quot;\$amount&quot; } } }
+    ]
+&quot;&quot;&quot;)
+
+for doc in Mongoc.aggregate(collection, bson_pipeline)
+  println(doc)
+end</code></pre><p>The result of the script above is:</p><pre><code class="language-julia hljs">BSON(&quot;{ &quot;_id&quot; : &quot;B212&quot;, &quot;total&quot; : 200 }&quot;)
+BSON(&quot;{ &quot;_id&quot; : &quot;A123&quot;, &quot;total&quot; : 750 }&quot;)</code></pre><p>A <strong>Map-Reduce</strong> operation can be executed with <code>Mongoc.command_simple</code> or <code>Mongoc.read_command</code>.</p><pre><code class="language-julia hljs">input_collection_name = &quot;aggregation-collection&quot;
+output_collection_name = &quot;order_totals&quot;
+query = Mongoc.BSON(&quot;&quot;&quot;{ &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;)
+
+# use `Mongoc.BSONCode` to represent JavaScript elements in BSON
+mapper = Mongoc.BSONCode(&quot;&quot;&quot; function() { emit( this.cust_id, this.amount ); } &quot;&quot;&quot;)
+reducer = Mongoc.BSONCode(&quot;&quot;&quot; function(key, values) { return Array.sum( values ) } &quot;&quot;&quot;)
+
+map_reduce_command = Mongoc.BSON()
+map_reduce_command[&quot;mapReduce&quot;] = input_collection_name
+map_reduce_command[&quot;map&quot;] = mapper
+map_reduce_command[&quot;reduce&quot;] = reducer
+map_reduce_command[&quot;out&quot;] = output_collection_name
+map_reduce_command[&quot;query&quot;] = query
+
+result = Mongoc.read_command(database, map_reduce_command)
+println(result)
+
+for doc in Mongoc.find(database[&quot;order_totals&quot;])
+   println(doc)
+end</code></pre><p>The result of the script above is:</p><pre><code class="language-julia hljs">BSON(&quot;{ &quot;result&quot; : &quot;order_totals&quot;, &quot;timeMillis&quot; : 135, &quot;counts&quot; : { &quot;input&quot; : 3, &quot;emit&quot; : 3, &quot;reduce&quot; : 1, &quot;output&quot; : 2 }, &quot;ok&quot; : 1.0 }&quot;)
+BSON(&quot;{ &quot;_id&quot; : &quot;A123&quot;, &quot;value&quot; : 750.0 }&quot;)
+BSON(&quot;{ &quot;_id&quot; : &quot;B212&quot;, &quot;value&quot; : 200.0 }&quot;)</code></pre><h2 id="&quot;distinct&quot;-command"><a class="docs-heading-anchor" href="#&quot;distinct&quot;-command">&quot;distinct&quot; command</a><a id="&quot;distinct&quot;-command-1"></a><a class="docs-heading-anchor-permalink" href="#&quot;distinct&quot;-command" title="Permalink"></a></h2><p>This example demonstrates the <code>distinct</code> command, based on <a href="https://mongoc.org/libmongoc/current/distinct-mapreduce.html">libmongoc docs</a>.</p><pre><code class="language-julia hljs">import Mongoc
+client = Mongoc.Client()
+
+docs = [
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 500, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 250, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;B212&quot;, &quot;amount&quot; : 200, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 300, &quot;status&quot; : &quot;D&quot; }&quot;&quot;&quot;)
+]
+
+collection = client[&quot;my-database&quot;][&quot;my-collection&quot;]
+append!(collection, docs)
+
+distinct_cmd = Mongoc.BSON()
+distinct_cmd[&quot;distinct&quot;] = &quot;my-collection&quot;
+distinct_cmd[&quot;key&quot;] = &quot;status&quot;
+
+result = Mongoc.command_simple(client[&quot;my-database&quot;], distinct_cmd)</code></pre><p>Which yields:</p><pre><code class="language-julia hljs">BSON(&quot;{ &quot;values&quot; : [ &quot;A&quot;, &quot;D&quot; ], &quot;ok&quot; : 1.0 }&quot;)</code></pre><h2 id="Find-and-Modify"><a class="docs-heading-anchor" href="#Find-and-Modify">Find and Modify</a><a id="Find-and-Modify-1"></a><a class="docs-heading-anchor-permalink" href="#Find-and-Modify" title="Permalink"></a></h2><p>Use <code>Mongoc.find_and_modify</code> to query and update documents in a single pass.</p><pre><code class="language-julia hljs">#
+# populate a new collection
+#
+
+collection = client[&quot;database_name&quot;][&quot;find_and_modify&quot;]
+
+docs = [
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 500, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 250, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;B212&quot;, &quot;amount&quot; : 200, &quot;status&quot; : &quot;A&quot; }&quot;&quot;&quot;),
+    Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;A123&quot;, &quot;amount&quot; : 300, &quot;status&quot; : &quot;D&quot; }&quot;&quot;&quot;)
+]
+
+append!(collection, docs)
+
+#
+# updates the item with amount 5000 with status &quot;N&quot;
+#
+query = Mongoc.BSON(&quot;amount&quot; =&gt; 500)
+
+reply = Mongoc.find_and_modify(
+    collection,
+    query,
+    update = Mongoc.BSON(&quot;&quot;&quot;{ &quot;\$set&quot; : { &quot;status&quot; : &quot;N&quot; } }&quot;&quot;&quot;),
+    flags = Mongoc.FIND_AND_MODIFY_FLAG_RETURN_NEW # will return the new version of the document
+)
+
+modified_doc = reply[&quot;value&quot;]
+@test modified_doc[&quot;status&quot;] == &quot;N&quot;
+
+#
+# UPSERT example: if the queried item is not found, it is created
+#
+
+query = Mongoc.BSON(&quot;&quot;&quot;{ &quot;cust_id&quot; : &quot;C555&quot;, &quot;amount&quot; : 10, &quot;status&quot; : &quot;X&quot; }&quot;&quot;&quot;)
+
+reply = Mongoc.find_and_modify(
+    collection,
+    query,
+    update = Mongoc.BSON(&quot;&quot;&quot;{ &quot;\$set&quot; : { &quot;status&quot; : &quot;S&quot; } }&quot;&quot;&quot;),
+    flags = Mongoc.FIND_AND_MODIFY_FLAG_UPSERT | Mongoc.FIND_AND_MODIFY_FLAG_RETURN_NEW
+)
+
+new_document = reply[&quot;value&quot;]
+@test new_document[&quot;cust_id&quot;] == &quot;C555&quot;
+@test new_document[&quot;amount&quot;] == 10
+@test new_document[&quot;status&quot;] == &quot;S&quot;
+
+#
+# Update sorted with selected fields
+#
+query = Mongoc.BSON(&quot;&quot;&quot;{ &quot;amount&quot; : { &quot;\$lt&quot; : 300 } }&quot;&quot;&quot;)
+update = Mongoc.BSON(&quot;&quot;&quot;{ &quot;\$set&quot; : { &quot;status&quot; : &quot;Z&quot; } }&quot;&quot;&quot;)
+fields = Mongoc.BSON(&quot;&quot;&quot;{ &quot;amount&quot; : 1, &quot;status&quot; : 1 }&quot;&quot;&quot;)
+sort = Mongoc.BSON(&quot;&quot;&quot;{ &quot;amount&quot; : 1 }&quot;&quot;&quot;)
+
+reply = Mongoc.find_and_modify(
+    collection,
+    query,
+    update=update,
+    sort=sort,
+    fields=fields,
+    flags=Mongoc.FIND_AND_MODIFY_FLAG_RETURN_NEW)
+
+new_document = reply[&quot;value&quot;]
+@test new_document[&quot;amount&quot;] == 10
+@test new_document[&quot;status&quot;] == &quot;Z&quot;
+@test !haskey(new_document, &quot;cust_id&quot;)</code></pre><h2 id="Create-Index"><a class="docs-heading-anchor" href="#Create-Index">Create Index</a><a id="Create-Index-1"></a><a class="docs-heading-anchor-permalink" href="#Create-Index" title="Permalink"></a></h2><p>Use <code>Mongoc.write_command</code> to issue a <code>createIndexes</code> command to the database.</p><pre><code class="language-julia hljs">database = client[DB_NAME]
+collection_name = &quot;index_collection&quot;
+collection = database[collection_name]
+
+let
+    items = [
+            Mongoc.BSON(&quot;_id&quot; =&gt; 1, &quot;group&quot; =&gt; &quot;g1&quot;),
+            Mongoc.BSON(&quot;_id&quot; =&gt; 2, &quot;group&quot; =&gt; &quot;g1&quot;),
+            Mongoc.BSON(&quot;_id&quot; =&gt; 3, &quot;group&quot; =&gt; &quot;g2&quot;)
+        ]
+
+    append!(collection, items)
+end
+
+create_indexes_cmd = Mongoc.BSON(
+        &quot;createIndexes&quot; =&gt; collection_name,
+        &quot;indexes&quot; =&gt; [ Mongoc.BSON(&quot;key&quot; =&gt; Mongoc.BSON(&quot;group&quot; =&gt; 1), &quot;name&quot; =&gt; &quot;group_index&quot;) ]
+    )
+reply = Mongoc.write_command(database, create_indexes_cmd)
+@assert reply[&quot;ok&quot;] == 1</code></pre><p>See also: https://mongoc.org/libmongoc/current/create-indexes.html.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../crud/">CRUD Operations »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.25 on <span class="colophon-date" title="Wednesday 14 January 2026 08:50">Wednesday 14 January 2026</span>. Using Julia version 1.12.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
