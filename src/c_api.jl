@@ -40,6 +40,10 @@ function bson_oid_is_valid(str::String)
     ccall((:bson_oid_is_valid, libbson), Bool, (Cstring, Csize_t), str, str_length)
 end
 
+function bson_reinit(bson_document::BSON)
+    ccall((:bson_reinit, libbson), Cvoid, (Ptr{Cvoid},), bson_document.handle)
+end
+
 function bson_append_oid(bson_document::Ptr{Cvoid}, key::AbstractString, key_length::Int, value::BSONObjectId)
     ccall((:bson_append_oid, libbson), Bool,
           (Ptr{Cvoid}, Cstring, Cint, Ref{BSONObjectId}),
