@@ -1184,11 +1184,20 @@ function Base.setindex!(document::BSON, value, key::Symbol)
 end
 
 function Base.getproperty(document::BSON, key::Symbol)
+    if key == :handle && !haskey(document, "handle")
+        @warn "The syntax `document.handle` to access the field `:handle` is deprecated. Please use the new
+        `Mongoc.handle(document)` or `getfield(document, :handle)` instead."
+        return getfield(document, :handle)
+    end
     document[key]
 end
 
 function Base.setproperty!(document::BSON, key::Symbol, value)
     document[key] = value
+end
+
+function Base.setproperty!(document::BSON, key::Symbol, value::Ptr{Nothing})
+    setfield!(document, :handle, value)
 end
 
 function Base.propertynames(document::BSON)
