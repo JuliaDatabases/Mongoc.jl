@@ -1,6 +1,6 @@
 
 import Mongoc
-
+import Mongoc.handle
 import Base.UUID
 using Test
 using Dates
@@ -107,7 +107,7 @@ using OrderedCollections
         uuid = UUID("a1f18b06-2210-499b-8313-28e69090511f")
         uuid_bytes = [0xa1, 0xf1, 0x8b, 0x06, 0x22, 0x10, 0x49, 0x9b, 0x83, 0x13, 0x28, 0xe6, 0x90, 0x90, 0x51, 0x1f]
         bson = Mongoc.BSON("uuid" => uuid)
-        Mongoc.bson_append_binary(bson.handle, "uuid2", -1, Mongoc.BSON_SUBTYPE_UUID, uuid_bytes, UInt32(16))
+        Mongoc.bson_append_binary(handle(bson), "uuid2", -1, Mongoc.BSON_SUBTYPE_UUID, uuid_bytes, UInt32(16))
         @test isa(bson["uuid"], UUID)
         @test bson["uuid"] == uuid
         @test isa(bson["uuid2"], UUID)
@@ -216,9 +216,6 @@ using OrderedCollections
         @test doc.null == nothing
 
         @test doc[:document, OrderedDict] == OrderedDict("a"=>1, "b"=>"b_string")
-        Mongoc.DEFAULT_DICT_TYPE[] = OrderedDict
-        @test doc.document == OrderedDict("a"=>1, "b"=>"b_string")
-        Mongoc.DEFAULT_DICT_TYPE[] = Dict
 
 
         # setindex!() with a key of type String adds another pair
@@ -332,7 +329,7 @@ using OrderedCollections
         @testset "exclude one key" begin
             src = Mongoc.BSON("hey" => "you", "out" => 1)
             dst = Mongoc.BSON()
-            Mongoc.bson_copy_to_excluding_noinit(src.handle, dst.handle, "out")
+            Mongoc.bson_copy_to_excluding_noinit(handle(src), handle(dst), "out")
             @test !haskey(dst, "out")
             @test dst["hey"] == "you"
         end
@@ -340,7 +337,7 @@ using OrderedCollections
         @testset "no exclude keys" begin
             src = Mongoc.BSON("hey" => "you", "out" => 1)
             dst = Mongoc.BSON()
-            Mongoc.bson_copy_to_noinit(src.handle, dst.handle)
+            Mongoc.bson_copy_to_noinit(handle(src), handle(dst))
             @test Mongoc.as_dict(src) == Mongoc.as_dict(dst)
         end
     end

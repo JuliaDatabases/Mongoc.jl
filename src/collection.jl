@@ -5,7 +5,7 @@ Base.show(io::IO, coll::Collection) = print(io, "Collection($(coll.database), \"
 function command_simple(collection::Collection, command::BSON) :: BSON
     reply = BSON()
     err_ref = Ref{BSONError}()
-    ok = mongoc_collection_command_simple(collection.handle, command.handle, C_NULL, reply.handle,
+    ok = mongoc_collection_command_simple(collection.handle, handle(command), C_NULL, handle(reply),
         err_ref)
 
     if !ok
@@ -19,9 +19,9 @@ function read_command(collection::Collection, command::BSON;
 
     reply = BSON()
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
     ok = mongoc_collection_read_command_with_opts(collection.handle,
-            command.handle, C_NULL, options_handle, reply.handle, err_ref)
+            handle(command), C_NULL, options_handle, handle(reply), err_ref)
 
     if !ok
         throw(err_ref[])
@@ -52,9 +52,9 @@ function insert_one(collection::Collection, document::BSON;
     document, inserted_oid = _new_id(document)
     reply = BSON()
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
-    ok = mongoc_collection_insert_one(collection.handle, document.handle, options_handle,
-                                      reply.handle, err_ref)
+    options_handle = options == nothing ? C_NULL : handle(options)
+    ok = mongoc_collection_insert_one(collection.handle, handle(document), options_handle,
+                                      handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -64,9 +64,9 @@ end
 function delete_one(collection::Collection, selector::BSON; options::Union{Nothing, BSON}=nothing)
     reply = BSON()
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
-    ok = mongoc_collection_delete_one(collection.handle, selector.handle, options_handle,
-                                      reply.handle, err_ref)
+    options_handle = options == nothing ? C_NULL : handle(options)
+    ok = mongoc_collection_delete_one(collection.handle, handle(selector), options_handle,
+                                      handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -76,9 +76,9 @@ end
 function delete_many(collection::Collection, selector::BSON; options::Union{Nothing, BSON}=nothing)
     reply = BSON()
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
-    ok = mongoc_collection_delete_many(collection.handle, selector.handle, options_handle,
-                                       reply.handle, err_ref)
+    options_handle = options == nothing ? C_NULL : handle(options)
+    ok = mongoc_collection_delete_many(collection.handle, handle(selector), options_handle,
+                                       handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -90,9 +90,9 @@ function update_one(collection::Collection, selector::BSON, update::BSON;
 
     reply = BSON()
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
-    ok = mongoc_collection_update_one(collection.handle, selector.handle, update.handle,
-                                      options_handle, reply.handle, err_ref)
+    options_handle = options == nothing ? C_NULL : handle(options)
+    ok = mongoc_collection_update_one(collection.handle, handle(selector), handle(update),
+                                      options_handle, handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -104,10 +104,10 @@ function update_many(collection::Collection, selector::BSON, update::BSON;
 
     reply = BSON()
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
 
-    ok = mongoc_collection_update_many(collection.handle, selector.handle, update.handle,
-        options_handle, reply.handle, err_ref)
+    ok = mongoc_collection_update_many(collection.handle, handle(selector), handle(update),
+        options_handle, handle(reply), err_ref)
 
     if !ok
         throw(err_ref[])
@@ -134,9 +134,9 @@ function replace_one(
 
     reply = BSON()
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
-    ok = mongoc_collection_replace_one(collection.handle, selector.handle, replacement.handle,
-                                       options_handle, reply.handle, err_ref)
+    options_handle = options == nothing ? C_NULL : handle(options)
+    ok = mongoc_collection_replace_one(collection.handle, handle(selector), handle(replacement),
+                                       options_handle, handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -159,7 +159,7 @@ function execute!(bulk_operation::BulkOperation) :: BulkOperationResult
         err_ref = Ref{BSONError}()
 
         bulk_operation_result = mongoc_bulk_operation_execute(bulk_operation.handle,
-            reply.handle, err_ref)
+            handle(reply), err_ref)
 
         if bulk_operation_result == 0
             throw(err_ref[])
@@ -174,8 +174,8 @@ function bulk_insert!(bulk_operation::BulkOperation, document::BSON;
         options::Union{Nothing, BSON}=nothing)
 
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
-    ok = mongoc_bulk_operation_insert_with_opts(bulk_operation.handle, document.handle,
+    options_handle = options == nothing ? C_NULL : handle(options)
+    ok = mongoc_bulk_operation_insert_with_opts(bulk_operation.handle, handle(document),
         options_handle, err_ref)
 
     if !ok
@@ -188,11 +188,11 @@ function bulk_replace_one!(bulk_operation::BulkOperation, selector::BSON, replac
         options::Union{Nothing, BSON}=nothing)
 
     err_ref = Ref{BSONError}()
-    options_handle = options === nothing ? C_NULL : options.handle
+    options_handle = options === nothing ? C_NULL : handle(options)
     ok = mongoc_bulk_operation_replace_one_with_opts(
         bulk_operation.handle,
-        selector.handle,
-        replacement.handle,
+        handle(selector),
+        handle(replacement),
         options_handle,
         err_ref
     )
@@ -207,11 +207,11 @@ function bulk_update_one!(
     options::Union{Nothing, BSON} = nothing
 )
     err_ref = Ref{BSONError}()
-    options_handle = options === nothing ? C_NULL : options.handle
+    options_handle = options === nothing ? C_NULL : handle(options)
     ok = mongoc_bulk_operation_update_one_with_opts(
         bulk_operation.handle,
-        selector.handle,
-        document.handle,
+        handle(selector),
+        handle(document),
         options_handle,
         err_ref
     )
@@ -268,8 +268,8 @@ for more information.
 function find(collection::Collection, bson_filter::BSON=BSON();
         options::Union{Nothing, BSON}=nothing) :: Cursor
 
-    options_handle = options == nothing ? C_NULL : options.handle
-    cursor_handle = mongoc_collection_find_with_opts(collection.handle, bson_filter.handle,
+    options_handle = options == nothing ? C_NULL : handle(options)
+    cursor_handle = mongoc_collection_find_with_opts(collection.handle, handle(bson_filter),
         options_handle, C_NULL)
 
     if cursor_handle == C_NULL
@@ -298,8 +298,8 @@ function count_documents(collection::Collection, bson_filter::BSON=BSON();
         options::Union{Nothing, BSON}=nothing) :: Int
 
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
-    len = mongoc_collection_count_documents(collection.handle, bson_filter.handle,
+    options_handle = options == nothing ? C_NULL : handle(options)
+    len = mongoc_collection_count_documents(collection.handle, handle(bson_filter),
         options_handle, C_NULL, C_NULL, err_ref)
 
     if len == -1
@@ -385,9 +385,9 @@ function aggregate(collection::Collection, bson_pipeline::BSON;
                    flags::QueryFlags=QUERY_FLAG_NONE,
                    options::Union{Nothing, BSON}=nothing) :: Cursor
 
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
     cursor_handle = mongoc_collection_aggregate(collection.handle, flags,
-                        bson_pipeline.handle, options_handle, C_NULL)
+                        handle(bson_pipeline), options_handle, C_NULL)
 
     if cursor_handle == C_NULL
         error("Couldn't execute aggregate command.")
@@ -407,7 +407,7 @@ or
 [collection drop](https://mongoc.org/libmongoc/current/mongoc_collection_drop_with_opts.html).
 """
 function drop(collection::Collection, opts::Union{Nothing, BSON}=nothing)
-    opts_handle = opts == nothing ? C_NULL : opts.handle
+    opts_handle = opts == nothing ? C_NULL : handle(opts)
     err_ref = Ref{BSONError}()
     ok = mongoc_collection_drop_with_opts(collection.handle, opts_handle, err_ref)
 
@@ -439,7 +439,7 @@ function Base.setproperty!(builder::FindAndModifyOptsBuilder, opt::Symbol, val::
 end
 
 function set_opt_update!(builder::FindAndModifyOptsBuilder, val::BSON)
-    ok = mongoc_find_and_modify_opts_set_update(builder.handle, val.handle)
+    ok = mongoc_find_and_modify_opts_set_update(builder.handle, handle(val))
     if !ok
         error("Couldn't set option update $val for FindAndModifyOptsBuilder.")
     end
@@ -447,7 +447,7 @@ function set_opt_update!(builder::FindAndModifyOptsBuilder, val::BSON)
 end
 
 function set_opt_sort!(builder::FindAndModifyOptsBuilder, val::BSON)
-    ok = mongoc_find_and_modify_opts_set_sort(builder.handle, val.handle)
+    ok = mongoc_find_and_modify_opts_set_sort(builder.handle, handle(val))
     if !ok
         error("Couldn't set option sort $val for FindAndModifyOptsBuilder.")
     end
@@ -455,7 +455,7 @@ function set_opt_sort!(builder::FindAndModifyOptsBuilder, val::BSON)
 end
 
 function set_opt_fields!(builder::FindAndModifyOptsBuilder, val::BSON)
-    ok = mongoc_find_and_modify_opts_set_fields(builder.handle, val.handle)
+    ok = mongoc_find_and_modify_opts_set_fields(builder.handle, handle(val))
     if !ok
         error("Couldn't set option fields $val for FindAndModifyOptsBuilder.")
     end
@@ -522,8 +522,8 @@ function find_and_modify(collection::Collection, query::BSON;
 
     ok = mongoc_collection_find_and_modify_with_opts(
             collection.handle,
-            query.handle, opts.handle,
-            reply.handle, err_ref)
+            handle(query), opts.handle,
+            handle(reply), err_ref)
 
     if !ok
         throw(err_ref[])

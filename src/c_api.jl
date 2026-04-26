@@ -41,7 +41,7 @@ function bson_oid_is_valid(str::String)
 end
 
 function bson_reinit(bson_document::BSON)
-    ccall((:bson_reinit, libbson), Cvoid, (Ptr{Cvoid},), bson_document.handle)
+    ccall((:bson_reinit, libbson), Cvoid, (Ptr{Cvoid},), handle(bson_document))
 end
 
 function bson_append_oid(bson_document::Ptr{Cvoid}, key::AbstractString, key_length::Int, value::BSONObjectId)

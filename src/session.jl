@@ -4,7 +4,7 @@
 function _join(options::Union{Nothing, BSON}, session::Session) :: BSON
     result = options == nothing ? Mongoc.BSON() : options
     err_ref = Ref{BSONError}()
-    ok = mongoc_client_session_append(session.handle, result.handle, err_ref)
+    ok = mongoc_client_session_append(session.handle, handle(result), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -160,7 +160,7 @@ end
 function commit_transaction!(session::Session) :: BSON
     reply = BSON()
     err_ref = Ref{BSONError}()
-    ok = mongoc_client_session_commit_transaction(session.handle, reply.handle, err_ref)
+    ok = mongoc_client_session_commit_transaction(session.handle, handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
