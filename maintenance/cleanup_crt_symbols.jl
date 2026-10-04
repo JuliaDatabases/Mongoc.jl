@@ -9,5 +9,9 @@ for library in ("msvcrt", "ucrtbase")
         println(library, " ", symbol, " ", Libdl.dlsym_e(handle, symbol))
     end
 end
-library = ccall(:jl_dlfind, Cstring, (Cstring,), "atexit")
-println("DEFAULT_ATEXIT_LIBRARY=", library == C_NULL ? "not found" : unsafe_string(library))
+try
+    library = ccall(:jl_dlfind, Cstring, (Cstring,), "atexit")
+    println("DEFAULT_ATEXIT_LIBRARY=", library == C_NULL ? "not found" : unsafe_string(library))
+catch error
+    println("OPTIONAL_LIBRARY_LOOKUP_UNAVAILABLE=", sprint(showerror, error))
+end
