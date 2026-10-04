@@ -252,6 +252,99 @@ const DB_NAME = "mongoc"
             Mongoc.drop(collection)
         end
 
+        @testset "Bulk replies on success and failure" begin
+            for ordered in (true, false), direct in (true, false)
+                collection = client[DB_NAME]["bulk_reply_$(ordered)_$(direct)"]
+                bulk = nothing
+                reply = Ref{Mongoc.BSON}()
+                try
+                    Mongoc.insert_one(collection, Mongoc.BSON("_id" => 1, "original" => true))
+                    documents = [Mongoc.BSON("_id" => i) for i in 1:3]
+                    err = try
+                        if direct
+                            bulk = Mongoc.BulkOperation(collection; options=Mongoc.BSON("ordered" => ordered))
+                            for document in documents
+                                Mongoc.bulk_insert!(bulk, document)
+                            end
+                            Mongoc.execute!(bulk; reply=reply)
+                        else
+                            Mongoc.insert_many(collection, documents;
+                                bulk_options=Mongoc.BSON("ordered" => ordered), reply=reply)
+                        end
+                        nothing
+                    catch caught
+                        caught
+                    end
+                    @test err isa Mongoc.BSONError
+                    @test err.code == 11000
+                    @test isassigned(reply)
+                    GC.gc()
+                    @test reply[]["nInserted"] == (ordered ? 0 : 2)
+                    errors = reply[]["writeErrors"]
+                    @test length(errors) == 1
+                    @test errors[1]["index"] == 0
+                    @test errors[1]["code"] == 11000
+                    @test Mongoc.count_documents(collection) == (ordered ? 1 : 3)
+                    @test Mongoc.find_one(collection, Mongoc.BSON("_id" => 1))["original"] === true
+                    if direct
+                        @test bulk.executed
+                        @test bulk.handle == C_NULL
+                        retained_reply = reply[]
+                        @test_throws ErrorException Mongoc.execute!(bulk; reply=reply)
+                        @test reply[] === retained_reply
+                    end
+                    @test_throws Mongoc.BSONError Mongoc.insert_many(collection, [Mongoc.BSON("_id" => 1)])
+                finally
+                    bulk === nothing || Mongoc.destroy!(bulk)
+                    Mongoc.drop(collection)
+                    Mongoc.destroy!(collection)
+                end
+            end
+
+            collection = client[DB_NAME]["bulk_reply_success"]
+            try
+                previous = Mongoc.BSON("original" => true)
+                reply = Ref(previous)
+                result = Mongoc.insert_many(collection, [Mongoc.BSON("_id" => 1)]; reply=reply)
+                @test reply[] === result.reply
+                @test reply[] !== previous
+                @test previous["original"] === true
+                @test reply[]["nInserted"] == 1
+                @test isempty(reply[]["writeErrors"])
+                bulk = Mongoc.BulkOperation(collection)
+                empty_reply = Ref{Mongoc.BSON}()
+                @test_throws Mongoc.BSONError Mongoc.execute!(bulk; reply=empty_reply)
+                @test isassigned(empty_reply)
+                @test isempty(empty_reply[])
+                @test bulk.handle == C_NULL
+            finally
+                Mongoc.drop(collection)
+                Mongoc.destroy!(collection)
+            end
+
+            options = Mongoc.SessionOptions()
+            session = Mongoc.Session(client; options=options)
+            collection = session[DB_NAME]["bulk_reply_session"]
+            try
+                reply = Ref{Mongoc.BSON}()
+                result = Mongoc.insert_many(collection, [Mongoc.BSON("_id" => 1)]; reply=reply)
+                @test reply[] === result.reply
+                @test reply[]["nInserted"] == 1
+                @test_throws Mongoc.BSONError Mongoc.insert_many(collection,
+                    [Mongoc.BSON("_id" => 1), Mongoc.BSON("_id" => 2)];
+                    bulk_options=Mongoc.BSON("ordered" => false), reply=reply)
+                @test reply[]["nInserted"] == 1
+                @test reply[]["writeErrors"][1]["index"] == 0
+                @test Mongoc.count_documents(collection) == 2
+            finally
+                Mongoc.drop(collection)
+                Mongoc.destroy!(collection.collection)
+                Mongoc.destroy!(collection.database_session.database)
+                Mongoc.destroy!(session)
+                Mongoc.destroy!(options)
+            end
+        end
+
         @testset "bulk_replace_one" begin
             collection = client[DB_NAME]["replace_many"]
             push!(collection, Mongoc.BSON("""{ "x": 1, "y": 100 }"""))
@@ -867,9 +960,15 @@ const DB_NAME = "mongoc"
 
     @testset "Session Options" begin
         opt = Mongoc.SessionOptions()
-        @test Mongoc.get_casual_consistency(opt)
-        Mongoc.set_casual_consistency!(opt, false)
-        @test !Mongoc.get_casual_consistency(opt)
+        try
+            @test Mongoc.get_casual_consistency(opt)
+            Mongoc.set_casual_consistency!(opt, false)
+            @test !Mongoc.get_casual_consistency(opt)
+        finally
+            Mongoc.destroy!(opt)
+        end
+        @test opt.handle == C_NULL
+        @test Mongoc.destroy!(opt) === nothing
     end
 
     server_version = Mongoc.get_server_mongodb_version(client)
@@ -879,10 +978,18 @@ const DB_NAME = "mongoc"
     else
         @testset "Session" begin
             session = Mongoc.Session(client)
-            db = session[DB_NAME]
-            collection = db["session_collection"]
-            push!(collection, Mongoc.BSON("""{ "try-insert" : 1 }"""))
-            Mongoc.drop(collection)
+            try
+                db = session[DB_NAME]
+                collection = db["session_collection"]
+                push!(collection, Mongoc.BSON("""{ "try-insert" : 1 }"""))
+                Mongoc.drop(collection)
+            finally
+                Mongoc.destroy!(session)
+                Mongoc.destroy!(session.options)
+            end
+            @test session.handle == C_NULL
+            @test session.options.handle == C_NULL
+            @test Mongoc.destroy!(session) === nothing
         end
     end
 

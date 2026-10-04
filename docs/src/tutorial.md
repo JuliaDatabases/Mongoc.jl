@@ -90,8 +90,8 @@ is created in the first time you insert a document in it.
 
 [BSON](https://bsonspec.org/) is the document format for MongoDB.
 
-To create a BSON document instance in **Mongoc.jl** just use Dictionary syntax,
-using `String`s as keys.
+To append fields to a BSON document instance in **Mongoc.jl**, use indexing
+syntax with `String`s as keys.
 
 ```julia
 julia> document = Mongoc.BSON()
@@ -156,6 +156,36 @@ julia> for (k, v) in document
 [b] = field_b
 [c] = Any[1, 2, 3]
 ```
+
+### Updating nested values
+
+Embedded documents and arrays are returned as independent Julia containers.
+Changing `document["foo"]["bar"]` does not update `document`. Assigning an
+existing key appends another field with the same name instead of replacing it.
+To update nested values, convert the document to a dictionary, modify it, and
+construct a new BSON document:
+
+Use this recipe for ordinary decoded values supported by the `BSON` constructor.
+Converting through a dictionary collapses duplicate keys and can lose binary
+subtype information. Values such as `BSONTimestamp` and `BSONUnsupported` need
+an explicit encoding before rebuilding.
+
+```@example nested_bson
+using Mongoc
+document = Mongoc.BSON("foo" => Dict{String,Any}(), "keep" => "unchanged")
+document["foo"]["bar"] = 42
+@assert isempty(document["foo"]) # hide
+values = Mongoc.as_dict(document)
+values["foo"]["bar"] = 42
+updated = Mongoc.BSON(values)
+@assert updated["foo"]["bar"] == 42 # hide
+@assert updated["keep"] == "unchanged" # hide
+@assert length(updated) == 2 # hide
+@assert isempty(document["foo"]) # hide
+updated["foo"]
+```
+
+### Converting BSON documents
 
 To convert a BSON to a JSON string, use:
 

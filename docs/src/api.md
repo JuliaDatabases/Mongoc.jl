@@ -7,6 +7,8 @@
 Mongoc.BSON
 Mongoc.BSONObjectId
 Mongoc.BSONCode
+Mongoc.BSONTimestamp
+Mongoc.BSONUnsupported
 Mongoc.as_json
 Mongoc.as_dict
 Mongoc.get_array
@@ -64,6 +66,8 @@ Mongoc.find_one_and_delete
 Mongoc.find_one_and_replace
 Mongoc.find_one_and_update
 Mongoc.replace_one
+Mongoc.insert_many
+Mongoc.execute!
 ```
 
 ## Aggregation
@@ -82,6 +86,7 @@ Mongoc.transaction
 ## GridFS
 
 ```@docs
+Mongoc.AbstractMongoStream
 Mongoc.MongoStreamFile
 Mongoc.upload
 Mongoc.download

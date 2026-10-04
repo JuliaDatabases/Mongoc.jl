@@ -82,10 +82,11 @@ end
 
 function insert_many(collection::CollectionSession, documents::Vector{BSON};
                      bulk_options::Union{Nothing, BSON}=nothing,
-                     insert_options::Union{Nothing, BSON}=nothing)
+                     insert_options::Union{Nothing, BSON}=nothing,
+                     reply::Union{Nothing, Ref{BSON}}=nothing)
     bulk_options_with_session = _join(bulk_options, get_session(collection))
     insert_many(collection.collection, documents,
-                bulk_options=bulk_options_with_session, insert_options=insert_options)
+                bulk_options=bulk_options_with_session, insert_options=insert_options, reply=reply)
 end
 
 function find(collection::CollectionSession, bson_filter::BSON=BSON();
