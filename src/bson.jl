@@ -186,6 +186,7 @@ end
 """
 A `BSON` represents a document in *Binary JSON* format,
 defined at https://bsonspec.org/.
+Dictionary inputs, including nested dictionaries, are encoded in iteration order.
 
 Indexing reads decoded values. Assignment appends a field, even when its key
 already exists. Embedded documents and arrays are decoded into independent
@@ -723,7 +724,7 @@ function Base.setindex!(document::BSON, value::BSON, key::AbstractString)
     nothing
 end
 
-Base.setindex!(document::BSON, value::Dict, key::AbstractString) = setindex!(document, BSON(value), key)
+Base.setindex!(document::BSON, value::AbstractDict, key::AbstractString) = setindex!(document, BSON(value), key)
 
 function Base.setindex!(document::BSON, value::Vector{T}, key::AbstractString) where T
     sub_document = BSON(value)

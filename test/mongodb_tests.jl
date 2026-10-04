@@ -867,9 +867,15 @@ const DB_NAME = "mongoc"
 
     @testset "Session Options" begin
         opt = Mongoc.SessionOptions()
-        @test Mongoc.get_casual_consistency(opt)
-        Mongoc.set_casual_consistency!(opt, false)
-        @test !Mongoc.get_casual_consistency(opt)
+        try
+            @test Mongoc.get_casual_consistency(opt)
+            Mongoc.set_casual_consistency!(opt, false)
+            @test !Mongoc.get_casual_consistency(opt)
+        finally
+            Mongoc.destroy!(opt)
+        end
+        @test opt.handle == C_NULL
+        @test Mongoc.destroy!(opt) === nothing
     end
 
     server_version = Mongoc.get_server_mongodb_version(client)
@@ -879,10 +885,18 @@ const DB_NAME = "mongoc"
     else
         @testset "Session" begin
             session = Mongoc.Session(client)
-            db = session[DB_NAME]
-            collection = db["session_collection"]
-            push!(collection, Mongoc.BSON("""{ "try-insert" : 1 }"""))
-            Mongoc.drop(collection)
+            try
+                db = session[DB_NAME]
+                collection = db["session_collection"]
+                push!(collection, Mongoc.BSON("""{ "try-insert" : 1 }"""))
+                Mongoc.drop(collection)
+            finally
+                Mongoc.destroy!(session)
+                Mongoc.destroy!(session.options)
+            end
+            @test session.handle == C_NULL
+            @test session.options.handle == C_NULL
+            @test Mongoc.destroy!(session) === nothing
         end
     end
 
