@@ -149,22 +149,40 @@ function BulkOperationResult(reply::BSON, server_id::UInt32)
     BulkOperationResult(reply, server_id, Vector{Union{Nothing, BSONObjectId}}())
 end
 
-function execute!(bulk_operation::BulkOperation) :: BulkOperationResult
+"""
+    execute!(bulk_operation::BulkOperation; reply=nothing) :: BulkOperationResult
+
+Execute a bulk operation once and release its native handle, including on failure.
+Errors throw `BSONError` even when some writes succeeded.
+
+Pass `reply=Ref{BSON}()` to retain the driver's reply on success or failure. The
+reference is assigned after the driver returns, before checking for an error.
+It remains unchanged if execution is rejected before calling the driver. A reply
+may be empty on failure; it does not by itself indicate success. On success,
+`reply[]` is the same document as the returned result's `reply` field. The reply
+remains usable after the bulk operation's native handle is released.
+"""
+function execute!(bulk_operation::BulkOperation;
+                  reply::Union{Nothing, Ref{BSON}}=nothing) :: BulkOperationResult
     if bulk_operation.executed
         error("Bulk operation was already executed.")
     end
 
     try
-        reply = BSON()
+        reply_bson = BSON()
         err_ref = Ref{BSONError}()
 
-        bulk_operation_result = mongoc_bulk_operation_execute(bulk_operation.handle,
-            reply.handle, err_ref)
+        bulk_operation_result = GC.@preserve bulk_operation reply_bson begin
+            mongoc_bulk_operation_execute(bulk_operation.handle, reply_bson.handle, err_ref)
+        end
+        if reply !== nothing
+            reply[] = reply_bson
+        end
 
         if bulk_operation_result == 0
             throw(err_ref[])
         end
-        return BulkOperationResult(reply, bulk_operation_result)
+        return BulkOperationResult(reply_bson, bulk_operation_result)
     finally
         destroy!(bulk_operation)
     end
@@ -222,8 +240,23 @@ function bulk_update_one!(
 end
 
 
+"""
+    insert_many(collection, documents::Vector{BSON};
+                bulk_options=nothing, insert_options=nothing, reply=nothing)
+
+Insert documents into a `Collection` or `CollectionSession`, returning a
+`BulkOperationResult`. With `bulk_options=BSON("ordered" => false)`, the server
+continues after individual write errors, but this function still throws
+`BSONError` if any write fails.
+
+Pass `reply=Ref{BSON}()` to retain the bulk reply when execution throws. The reply
+contains counts and `writeErrors` when available; error indices are zero-based
+positions in `documents`. Setup errors before bulk execution leave the reference
+unchanged. See [`execute!`](@ref) for the reply's lifetime and success behavior.
+"""
 function insert_many(collection::Collection, documents::Vector{BSON};
-        bulk_options::Union{Nothing, BSON}=nothing, insert_options::Union{Nothing, BSON}=nothing)
+        bulk_options::Union{Nothing, BSON}=nothing, insert_options::Union{Nothing, BSON}=nothing,
+        reply::Union{Nothing, Ref{BSON}}=nothing)
 
     inserted_oids = Vector{Union{Nothing, BSONObjectId}}()
 
@@ -233,7 +266,7 @@ function insert_many(collection::Collection, documents::Vector{BSON};
         bulk_insert!(bulk_operation, doc, options=insert_options)
         push!(inserted_oids, inserted_oid)
     end
-    result = execute!(bulk_operation)
+    result = execute!(bulk_operation; reply=reply)
     append!(result.inserted_oids, inserted_oids)
     return result
 end

@@ -878,7 +878,7 @@ function mongoc_stream_read(
         min_bytes::Integer,
         timeout_msec::Integer)
 
-    ccall((:mongoc_stream_read, libmongoc), Csize_t,
+    ccall((:mongoc_stream_read, libmongoc), Cssize_t,
           (Ptr{Cvoid}, Ptr{UInt8}, Csize_t, Csize_t, Cint),
           stream_handle, buffer_handle, count, min_bytes, timeout_msec)
 end
@@ -889,7 +889,7 @@ function mongoc_stream_write(
         count::Integer,
         timeout_msec::Integer)
 
-    ccall((:mongoc_stream_write, libmongoc), Csize_t,
+    ccall((:mongoc_stream_write, libmongoc), Cssize_t,
           (Ptr{Cvoid}, Ptr{UInt8}, Csize_t, Cint),
            stream_handle, buffer_handle, count, timeout_msec)
 end

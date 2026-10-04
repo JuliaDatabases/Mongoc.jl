@@ -2,6 +2,7 @@
 using Documenter, Mongoc
 
 makedocs(
+    strict = true,
     sitename = "Mongoc.jl",
     modules = [ Mongoc ],
     pages = [ "Home" => "index.md",

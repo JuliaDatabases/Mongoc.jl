@@ -4,10 +4,10 @@
 #
 
 # BSONType mirrors C enum bson_type_t.
-primitive type BSONType 8 end # 1 byte
+primitive type BSONType sizeof(Cint) * 8 end
 
-Base.convert(::Type{T}, t::BSONType) where {T<:Number} = reinterpret(UInt8, t)
-Base.convert(::Type{BSONType}, n::T) where {T<:Number} = reinterpret(BSONType, n)
+Base.convert(::Type{T}, t::BSONType) where {T<:Number} = T(reinterpret(Cint, t))
+Base.convert(::Type{BSONType}, n::T) where {T<:Number} = reinterpret(BSONType, Cint(n))
 BSONType(u::UInt8) = convert(BSONType, u)
 
 #
@@ -40,10 +40,10 @@ const BSON_TYPE_MINKEY     = BSONType(0xFF)
 
 
 # BSONSubType mirrors C enum bson_subtype_t.
-primitive type BSONSubType 8 end
+primitive type BSONSubType sizeof(Cint) * 8 end
 
-Base.convert(::Type{T}, t::BSONSubType) where {T<:Number} = reinterpret(UInt8, t)
-Base.convert(::Type{BSONSubType}, n::T) where {T<:Number} = reinterpret(BSONSubType, n)
+Base.convert(::Type{T}, t::BSONSubType) where {T<:Number} = T(reinterpret(Cint, t))
+Base.convert(::Type{BSONSubType}, n::T) where {T<:Number} = reinterpret(BSONSubType, Cint(n))
 BSONSubType(u::UInt8) = convert(BSONSubType, u)
 
 #
@@ -186,9 +186,14 @@ end
 """
 A `BSON` represents a document in *Binary JSON* format,
 defined at https://bsonspec.org/.
+Dictionary inputs, including nested dictionaries, are encoded in iteration order.
 
-In Julia, you can manipulate a `BSON` instance
-just like a `Dict`.
+Indexing reads decoded values. Assignment appends a field, even when its key
+already exists. Embedded documents and arrays are decoded into independent
+Julia containers; mutating them does not update the original `BSON`.
+To change these values, modify a dictionary returned by [`as_dict`](@ref) and
+construct a new `BSON` from it. This requires values supported by the constructor;
+duplicate keys collapse and binary subtype information may be lost.
 
 # Example
 
@@ -629,7 +634,7 @@ end
 Returns a value stored in a bson document `doc`
 as a `BSONValue`.
 
-See also [Mongoc.BSONValue](@ref).
+See also [`Mongoc.BSONValue`](@ref).
 """
 function get_as_bson_value(document::BSON, key::AbstractString) :: BSONValue
     iter_ref = Ref{BSONIter}()
@@ -719,7 +724,7 @@ function Base.setindex!(document::BSON, value::BSON, key::AbstractString)
     nothing
 end
 
-Base.setindex!(document::BSON, value::Dict, key::AbstractString) = setindex!(document, BSON(value), key)
+Base.setindex!(document::BSON, value::AbstractDict, key::AbstractString) = setindex!(document, BSON(value), key)
 
 function Base.setindex!(document::BSON, value::Vector{T}, key::AbstractString) where T
     sub_document = BSON(value)
