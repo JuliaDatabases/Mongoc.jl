@@ -7,6 +7,8 @@
 Mongoc.BSON
 Mongoc.BSONObjectId
 Mongoc.BSONCode
+Mongoc.BSONTimestamp
+Mongoc.BSONUnsupported
 Mongoc.as_json
 Mongoc.as_dict
 Mongoc.get_array
@@ -82,6 +84,7 @@ Mongoc.transaction
 ## GridFS
 
 ```@docs
+Mongoc.AbstractMongoStream
 Mongoc.MongoStreamFile
 Mongoc.upload
 Mongoc.download
