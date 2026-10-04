@@ -1,0 +1,59 @@
+name: Native cleanup platform check
+on:
+  push:
+    branches: [maintenance/mongoc-cleanup-platform-check]
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['1.6', '1']
+    env:
+      JULIA_PKG_PRECOMPILE_AUTO: '0'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.version }}
+      - name: Record CRT symbols
+        run: julia --startup-file=no maintenance/cleanup_crt_symbols.jl
+      - name: Install and load the unchanged candidate
+        run: |
+          julia --startup-file=no --project="$env:RUNNER_TEMP/mongoc-candidate-env" -e 'using Pkg; Pkg.develop(path=pwd()); Pkg.instantiate(); using Mongoc; println("CANDIDATE_LOADED=", VERSION)'
+      - name: Start the owned MongoDB fixture
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'mongoc-platform-mongodb.zip'
+          $fixtureRoot = Join-Path $env:RUNNER_TEMP 'mongoc-platform-mongodb'
+          Invoke-WebRequest 'https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-5.0.33.zip' -OutFile $archive
+          Expand-Archive $archive $fixtureRoot
+          $mongod = Get-ChildItem $fixtureRoot -Filter mongod.exe -Recurse | Select-Object -First 1
+          $databaseDirectory = Join-Path $fixtureRoot 'owned-data'
+          New-Item -ItemType Directory -Path $databaseDirectory
+          $fixture = Start-Process $mongod.FullName -ArgumentList @('--dbpath', $databaseDirectory, '--bind_ip', '127.0.0.1', '--port', '27017', '--logpath', (Join-Path $fixtureRoot 'mongod.log')) -PassThru
+          $fixture.Id | Set-Content (Join-Path $env:RUNNER_TEMP 'mongoc-platform-fixture.pid')
+          $ready = $false
+          for ($attempt = 0; $attempt -lt 60; $attempt++) {
+            try { $connection = [Net.Sockets.TcpClient]::new('127.0.0.1', 27017); $connection.Close(); $ready = $true; break } catch { Start-Sleep 1 }
+          }
+          if (-not $ready) { throw 'Owned MongoDB fixture did not start' }
+      - name: Run all unmodified exit regressions
+        run: julia --startup-file=no --check-bounds=yes --project="$env:RUNNER_TEMP/mongoc-candidate-env" test/exit_tests.jl
+      - name: Observe finalizer and cleanup order
+        run: |
+          $compiler = Get-Command gcc -ErrorAction SilentlyContinue
+          if ($compiler) { $compilerPath = $compiler.Source } else { $compilerPath = (Get-ChildItem 'C:\msys64' -Filter gcc.exe -Recurse | Select-Object -First 1).FullName }
+          if (-not $compilerPath) { throw 'No native C compiler found' }
+          $observer = Join-Path $env:RUNNER_TEMP 'mongoc-cleanup-observer.dll'
+          & $compilerPath -shared -O2 maintenance/cleanup_observer.c -o $observer
+          if ($LASTEXITCODE -ne 0) { throw 'C observer build failed' }
+          $env:SWEEP_MONGOC_EXIT_OBSERVER = $observer
+          julia --startup-file=no --check-bounds=yes --project="$env:RUNNER_TEMP/mongoc-candidate-env" maintenance/cleanup_observer.jl
+      - name: Stop only the owned fixture
+        if: always()
+        run: |
+          $identifier = Join-Path $env:RUNNER_TEMP 'mongoc-platform-fixture.pid'
+          if (Test-Path $identifier) { $fixtureProcessId = [int](Get-Content $identifier); Stop-Process -Id $fixtureProcessId -ErrorAction SilentlyContinue }
