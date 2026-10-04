@@ -79,7 +79,7 @@ end
 
 Base.isopen(stream::AbstractMongoStream) = stream.isopen
 
-function Base.readbytes!(s::AbstractMongoStream, buffer::AbstractArray{UInt8}, nb=length(b))
+function Base.readbytes!(s::AbstractMongoStream, buffer::AbstractArray{UInt8}, nb=length(buffer))
 
     chunk = Vector{UInt8}(undef, s.chunk_size)
     total_nr = 0
@@ -151,8 +151,8 @@ function fillbuffer!(s::AbstractMongoStream, buffer::AbstractArray{UInt8}, nb::I
     nr = mongoc_stream_read(s.handle, pointer(buffer), nb, 0, s.timeout_msec)
 
     if nr == -1
-        check_stream_error(stream)
-        error("Error closing stream.")
+        check_stream_error(s)
+        error("Error reading from stream.")
     end
 
     return nr
