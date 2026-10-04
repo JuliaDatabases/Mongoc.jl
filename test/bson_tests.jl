@@ -268,6 +268,55 @@ using Distributed
         @test dict == convert(Dict{String, Any}, doc)
     end
 
+    @testset "Nested AbstractDict values" begin
+        entries = ("first" => Int32(7), "second" => "two", "third" => false)
+        immutable = Base.ImmutableDict{String, Any}()
+        for entry in entries
+            immutable = Base.ImmutableDict(immutable, entry)
+        end
+        wrappers = (
+            value -> begin
+                document = Mongoc.BSON()
+                document[SubString("_child", 2)] = value
+                document
+            end,
+            value -> Mongoc.BSON("child" => value),
+            value -> Mongoc.BSON(Dict("child" => value)),
+            value -> Mongoc.BSON("children" => [value]),
+            value -> Mongoc.BSON("outer" => Dict("child" => value)),
+        )
+        for value in (Dict{String, Any}(entries), immutable)
+            encoded = Mongoc.BSON(value)
+            @test collect(keys(encoded)) == collect(keys(value))
+            @test Mongoc.as_dict(encoded) == Dict(value)
+            for wrap in wrappers
+                @test Mongoc.as_json(wrap(value), canonical=true) ==
+                    Mongoc.as_json(wrap(encoded), canonical=true)
+            end
+        end
+
+        for value in (Dict{String, Any}(), Base.ImmutableDict{String, Any}())
+            @test isempty(Mongoc.BSON("child" => value)["child"])
+            @test Mongoc.as_json(Mongoc.BSON("child" => value)) ==
+                Mongoc.as_json(Mongoc.BSON("child" => Mongoc.BSON()))
+        end
+        nested = Base.ImmutableDict("child" => Base.ImmutableDict("value" => Int32(1)))
+        @test Mongoc.BSON("outer" => nested)["outer"] == Dict("child" => Dict("value" => 1))
+
+        value = Dict("value" => 1)
+        document = Mongoc.BSON("child" => value)
+        value["value"] = 2
+        @test document["child"]["value"] == 1
+
+        # BSON subdocuments preserve native value types and an encoded snapshot.
+        child = Mongoc.BSON(raw"""{"stamp":{"$timestamp":{"t":1,"i":2}}}""")
+        expected = Mongoc.BSON(raw"""{"child":{"stamp":{"$timestamp":{"t":1,"i":2}}}}""")
+        document = Mongoc.BSON("child" => child)
+        @test Mongoc.as_json(document, canonical=true) == Mongoc.as_json(expected, canonical=true)
+        child["extra"] = true
+        @test Mongoc.as_json(document, canonical=true) == Mongoc.as_json(expected, canonical=true)
+    end
+
     @testset "BSON Dict API" begin
         doc = Mongoc.BSON("a" => 1, "b" => false, "c" => "string", "d" => nothing)
 
