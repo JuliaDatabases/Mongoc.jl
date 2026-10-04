@@ -187,8 +187,12 @@ end
 A `BSON` represents a document in *Binary JSON* format,
 defined at https://bsonspec.org/.
 
-In Julia, you can manipulate a `BSON` instance
-just like a `Dict`.
+Indexing reads decoded values. Assignment appends a field, even when its key
+already exists. Embedded documents and arrays are decoded into independent
+Julia containers; mutating them does not update the original `BSON`.
+To change these values, modify a dictionary returned by [`as_dict`](@ref) and
+construct a new `BSON` from it. This requires values supported by the constructor;
+duplicate keys collapse and binary subtype information may be lost.
 
 # Example
 
@@ -629,7 +633,7 @@ end
 Returns a value stored in a bson document `doc`
 as a `BSONValue`.
 
-See also [Mongoc.BSONValue](@ref).
+See also [`Mongoc.BSONValue`](@ref).
 """
 function get_as_bson_value(document::BSON, key::AbstractString) :: BSONValue
     iter_ref = Ref{BSONIter}()
