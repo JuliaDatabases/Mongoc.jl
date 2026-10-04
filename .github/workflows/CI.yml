@@ -58,11 +58,12 @@ jobs:
           version: ${{ matrix.version }}
       - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
-      - name: Initialize the driver and exit normally
+      - name: Initialize the driver, test native streams, and exit normally
         run: |
           julia --startup-file=no --compiled-modules=no --code-coverage=user --project -e '
             using Mongoc
             @assert Sys.iswindows()
+            include("test/stream_tests.jl")
             println("JULIA_VERSION=", VERSION)
             println("NATIVE_VERSION=", unsafe_string(ccall((:mongoc_get_version, Mongoc.libmongoc), Cstring, ())))'
       - uses: julia-actions/julia-processcoverage@v1
