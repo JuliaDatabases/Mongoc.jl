@@ -1,6 +1,7 @@
 
 module Mongoc
 using MongoC_jll
+import Libdl
 
 import Base.UUID
 using Dates, DecFP, Serialization
@@ -27,7 +28,17 @@ include("gridfs.jl")
 
 function __init__()
     mongoc_init()
-    atexit(mongoc_cleanup)
+    # Julia's exit hooks precede object finalizers. Keep libmongoc loaded and
+    # register its native cleanup with libc so clients are destroyed first.
+    cleanup = Libdl.dlsym(Libdl.dlopen(libmongoc), :mongoc_cleanup)
+    registered = if Sys.islinux()
+        # glibc's atexit is hidden; use the registration function it calls.
+        ccall(:__cxa_atexit, Cint, (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}), cleanup, C_NULL, C_NULL)
+    else
+        ccall(:atexit, Cint, (Ptr{Cvoid},), cleanup)
+    end
+    registered == 0 ||
+        error("Could not register libmongoc cleanup at process exit.")
 end
 
 end # module Mongoc
