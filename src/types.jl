@@ -191,7 +191,7 @@ mutable struct Bucket
     handle::Ptr{Cvoid}
 
     function Bucket(database::Database; options::Union{Nothing, BSON}=nothing)
-        options_handle = options == nothing ? C_NULL : options.handle
+        options_handle = options == nothing ? C_NULL : handle(options)
         err_ref = Ref{BSONError}()
 
         gridfs_handle = mongoc_gridfs_bucket_new(database.handle,
@@ -253,7 +253,7 @@ mutable struct BulkOperation
     executed::Bool
 
     function BulkOperation(collection::Collection; options::Union{Nothing, BSON}=nothing)
-        options_handle = options == nothing ? C_NULL : options.handle
+        options_handle = options == nothing ? C_NULL : handle(options)
         handle = mongoc_collection_create_bulk_operation_with_opts(collection.handle, options_handle)
         @assert handle != C_NULL "Failed to create a bulk operation handle."
         bulk_operation = new(collection, handle, false)

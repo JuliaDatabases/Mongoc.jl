@@ -48,7 +48,7 @@ function upload(bucket::Bucket, filename::AbstractString, source::AbstractMongoS
         end
     end
     options = new_bson_upload_opts(chunk_size, metadata)
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
 
     err_ref = Ref{BSONError}()
 
@@ -169,7 +169,7 @@ Looks for files in GridFS bucket.
 function find(bucket::Bucket, bson_filter::BSON=BSON();
         options::BSON=BSON()) :: Cursor
 
-    cursor_handle = mongoc_gridfs_bucket_find(bucket.handle, bson_filter.handle, options.handle)
+    cursor_handle = mongoc_gridfs_bucket_find(bucket.handle, handle(bson_filter), handle(options))
 
     if cursor_handle == C_NULL
         error("Couldn't execute query.")
@@ -286,7 +286,7 @@ function open_upload_stream(bucket::Bucket, file_id::BSONValue, filename::Abstra
         chunk_size::Integer=DEFAULT_CHUNK_SIZE) :: MongoIOStream
 
     err_ref = Ref{BSONError}()
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
 
     stream_handle = mongoc_gridfs_bucket_open_upload_stream_with_id(
             bucket.handle, file_id.handle, filename, options_handle,

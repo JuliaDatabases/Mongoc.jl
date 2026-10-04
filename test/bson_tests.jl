@@ -1,11 +1,12 @@
 
 import Mongoc
-
+import Mongoc.handle
 import Base.UUID
 using Test
 using Dates
 using DecFP
 using Distributed
+using OrderedCollections
 
 @testset "BSON" begin
 
@@ -106,7 +107,7 @@ using Distributed
         uuid = UUID("a1f18b06-2210-499b-8313-28e69090511f")
         uuid_bytes = [0xa1, 0xf1, 0x8b, 0x06, 0x22, 0x10, 0x49, 0x9b, 0x83, 0x13, 0x28, 0xe6, 0x90, 0x90, 0x51, 0x1f]
         bson = Mongoc.BSON("uuid" => uuid)
-        Mongoc.bson_append_binary(bson.handle, "uuid2", -1, Mongoc.BSON_SUBTYPE_UUID, uuid_bytes, UInt32(16))
+        Mongoc.bson_append_binary(handle(bson), "uuid2", -1, Mongoc.BSON_SUBTYPE_UUID, uuid_bytes, UInt32(16))
         @test isa(bson["uuid"], UUID)
         @test bson["uuid"] == uuid
         @test isa(bson["uuid2"], UUID)
@@ -171,6 +172,7 @@ using Distributed
         @test doc["_id"] == new_id
         @test doc["array"] == [1, 2, false, "inner_string"]
         @test doc["document"] == Dict("a"=>1, "b"=>"b_string")
+        @test doc["document", OrderedDict] == OrderedDict("a"=>1, "b"=>"b_string")
         @test doc["null"] == nothing
 
         @test_throws KeyError doc["invalid key"]
@@ -187,7 +189,7 @@ using Distributed
         @test doc_dict["_id"] == new_id
         @test doc_dict["array"] == [1, 2, false, "inner_string"]
         @test doc_dict["document"] == Dict("a"=>1, "b"=>"b_string")
-        @test doc_dict["null"] == nothing
+        @test doc_dict["null"] === nothing
 
         @testset "convert(Dict, BSON)" begin
             doc_dict2 = @inferred(convert(Dict, doc))
@@ -202,6 +204,37 @@ using Distributed
 
         @test_throws MethodError Mongoc.get_array(doc, "float_array", String)
         @test_throws ErrorException Mongoc.get_array(doc, "document", Any)
+
+        @test doc.a == 1
+        @test doc.b == 2.2
+        @test doc.str == "my string"
+        @test doc.bool_t
+        @test !doc.bool_f
+        @test doc._id == new_id
+        @test doc.array == [1, 2, false, "inner_string"]
+        @test doc.document == Dict("a"=>1, "b"=>"b_string")
+        @test doc.null == nothing
+
+        @test doc[:document, OrderedDict] == OrderedDict("a"=>1, "b"=>"b_string")
+
+
+        # setindex!() with a key of type String adds another pair
+        doc["a"] = "new_a"
+        pairs = collect(doc)
+        filter!(p -> p[1] == "a", pairs)
+        @test length(pairs) == 2
+        @test pairs[1][2] == 1
+        @test pairs[2][2] == "new_a"
+        # getindex() retrieves the first pair
+        @test_broken doc["a"] != 1
+        @test_broken doc["a"] == "new_a"
+        # getindex with a key of type Symbol and getproperty() retrieve the last pair
+        @test doc[:a] == "new_a"
+        @test doc.a == "new_a"
+        merge!(doc)
+        @test doc["a"] == "new_a"
+        doc.a = "even_newer_a"
+        @test doc["a"] == "even_newer_a"
     end
 
     @testset "BSON write" begin
@@ -296,7 +329,7 @@ using Distributed
         @testset "exclude one key" begin
             src = Mongoc.BSON("hey" => "you", "out" => 1)
             dst = Mongoc.BSON()
-            Mongoc.bson_copy_to_excluding_noinit(src.handle, dst.handle, "out")
+            Mongoc.bson_copy_to_excluding_noinit(handle(src), handle(dst), "out")
             @test !haskey(dst, "out")
             @test dst["hey"] == "you"
         end
@@ -304,7 +337,7 @@ using Distributed
         @testset "no exclude keys" begin
             src = Mongoc.BSON("hey" => "you", "out" => 1)
             dst = Mongoc.BSON()
-            Mongoc.bson_copy_to_noinit(src.handle, dst.handle)
+            Mongoc.bson_copy_to_noinit(handle(src), handle(dst))
             @test Mongoc.as_dict(src) == Mongoc.as_dict(dst)
         end
     end

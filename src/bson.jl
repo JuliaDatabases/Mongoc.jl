@@ -10,6 +10,8 @@ Base.convert(::Type{T}, t::BSONType) where {T<:Number} = T(reinterpret(Cint, t))
 Base.convert(::Type{BSONType}, n::T) where {T<:Number} = reinterpret(BSONType, Cint(n))
 BSONType(u::UInt8) = convert(BSONType, u)
 
+const DEFAULT_DICT_TYPE = OrderedDict
+
 #
 # Constants for BSONType
 #
@@ -214,10 +216,12 @@ mutable struct BSON <: AbstractDict{String, Any}
     end
 end
 
+@inline handle(document::BSON) = getfield(document, :handle)
+
 function destroy!(bson::BSON)
-    if bson.handle != C_NULL
-        bson_destroy(bson.handle)
-        bson.handle = C_NULL
+    if handle(bson) != C_NULL
+        bson_destroy(handle(bson))
+        setfield!(bson, :handle, C_NULL)
     end
     nothing
 end
@@ -235,7 +239,7 @@ function Base.deepcopy_internal(x::BSON, stackdict::IdDict)
     if haskey(stackdict, x)
         return stackdict[x]
     end
-    y = BSON(bson_copy(x.handle))
+    y = BSON(bson_copy(handle(x)))
     stackdict[x] = y
     return y
 end
@@ -383,7 +387,7 @@ function BSON(args::Pair...)
     result = BSON()
 
     for (k, v) in args
-        result[k] = v
+        result[String(k)] = v
     end
 
     return result
@@ -419,9 +423,9 @@ function as_json(bson::BSON; canonical::Bool=false) :: String
     local bson_cstring::Cstring
 
     if canonical
-        bson_cstring = bson_as_canonical_extended_json(bson.handle)
+        bson_cstring = bson_as_canonical_extended_json(handle(bson))
     else
-        bson_cstring = bson_as_relaxed_extended_json(bson.handle)
+        bson_cstring = bson_as_relaxed_extended_json(handle(bson))
     end
 
     if bson_cstring == C_NULL
@@ -434,18 +438,18 @@ function as_json(bson::BSON; canonical::Bool=false) :: String
     return result
 end
 
-Base.length(document::BSON) = bson_count_keys(document.handle)
+Base.length(document::BSON) = bson_count_keys(handle(document))
 
 #
 # Read values from BSON
 #
 
-has_field(bson::BSON, key::AbstractString) = bson_has_field(bson.handle, key)
+has_field(bson::BSON, key::AbstractString) = bson_has_field(handle(bson), key)
 Base.haskey(bson::BSON, key::AbstractString) = has_field(bson, key)
 
 function bson_iter_init(document::BSON)
     iter_ref = Ref{BSONIter}()
-    ok = bson_iter_init(iter_ref, document.handle)
+    ok = bson_iter_init(iter_ref, handle(document))
     if !ok
         error("Couldn't create iterator for BSON document.")
     end
@@ -503,16 +507,16 @@ Base.keys(doc::BSON) = BSONIterator(doc, IterateKeys)
 Base.values(doc::BSON) = BSONIterator(doc, IterateValues)
 
 """
-    as_dict(document::BSON) :: Dict{String}
+    as_dict(document::BSON; dicttype::Type{D} = DEFAULT_DICT_TYPE) :: Dict{String}
 
-Converts a BSON document to a Julia `Dict`.
+Converts a BSON document to a given dicttype, defaulting to DEFAULT_DICT_TYPE (OrderedDict)
 """
-as_dict(document::BSON) = convert(Dict, document)
+as_dict(document::BSON; @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict = convert(D, document)
 
-function as_dict(iter_ref::Ref{BSONIter})
-    result = Dict{String, Any}()
+function as_dict(iter_ref::Ref{BSONIter}; @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict
+    result = D{String, Any}()
     while bson_iter_next(iter_ref)
-        result[unsafe_string(bson_iter_key(iter_ref))] = get_value(iter_ref)
+        result[unsafe_string(bson_iter_key(iter_ref))] = get_value(iter_ref; dicttype)
     end
     return result
 end
@@ -526,7 +530,7 @@ to the specified type, an error will be thrown.
 """
 function get_array(document::BSON, key::AbstractString, ::Type{T}) where T
     iter_ref = Ref{BSONIter}()
-    ok = bson_iter_init_find(iter_ref, document.handle, key)
+    ok = bson_iter_init_find(iter_ref, handle(document), key)
     if !ok
         error("Key $key not found.")
     end
@@ -552,7 +556,7 @@ function get_array(iter_ref::Ref{BSONIter}, ::Type{T}) where T
     return result_array
 end
 
-function get_value(iter_ref::Ref{BSONIter})
+function get_value(iter_ref::Ref{BSONIter}; @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict
     bson_type = bson_iter_type(iter_ref)
 
     if bson_type == BSON_TYPE_UTF8
@@ -584,7 +588,7 @@ function get_value(iter_ref::Ref{BSONIter})
         if !ok
             error("Couldn't iterate document inside BSON.")
         end
-        return as_dict(child_iter_ref)
+        return as_dict(child_iter_ref; dicttype)
 
     elseif bson_type == BSON_TYPE_BINARY
 
@@ -612,15 +616,15 @@ function get_value(iter_ref::Ref{BSONIter})
     end
 end
 
-function Base.getindex(document::BSON, key::AbstractString)
+function Base.getindex(document::BSON, key::AbstractString, @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict
     iter_ref = Ref{BSONIter}()
-    bson_iter_init_find(iter_ref, document.handle, key) || throw(KeyError(key))
-    return get_value(iter_ref)
+    bson_iter_init_find(iter_ref, handle(document), key) || throw(KeyError(key))
+    return get_value(iter_ref; dicttype = D)
 end
 
 function Base.get(document::BSON, key::AbstractString, default::Any)
     iter_ref = Ref{BSONIter}()
-    return bson_iter_init_find(iter_ref, document.handle, key) ? get_value(iter_ref) : default
+    return bson_iter_init_find(iter_ref, handle(document), key) ? get_value(iter_ref) : default
 end
 
 """
@@ -633,7 +637,7 @@ See also [Mongoc.BSONValue](@ref).
 """
 function get_as_bson_value(document::BSON, key::AbstractString) :: BSONValue
     iter_ref = Ref{BSONIter}()
-    bson_iter_init_find(iter_ref, document.handle, key) || throw(KeyError(key))
+    bson_iter_init_find(iter_ref, handle(document), key) || throw(KeyError(key))
     return get_as_bson_value(iter_ref)
 end
 
@@ -648,7 +652,7 @@ end
 #
 
 function Base.setindex!(document::BSON, value::BSONObjectId, key::AbstractString)
-    ok = bson_append_oid(document.handle, key, -1, value)
+    ok = bson_append_oid(handle(document), key, -1, value)
     if !ok
         error("Couldn't append oid to BSON document.")
     end
@@ -656,7 +660,7 @@ function Base.setindex!(document::BSON, value::BSONObjectId, key::AbstractString
 end
 
 function Base.setindex!(document::BSON, value::Int64, key::AbstractString)
-    ok = bson_append_int64(document.handle, key, -1, value)
+    ok = bson_append_int64(handle(document), key, -1, value)
     if !ok
         error("Couldn't append Int64 to BSON document.")
     end
@@ -664,7 +668,7 @@ function Base.setindex!(document::BSON, value::Int64, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::Int32, key::AbstractString)
-    ok = bson_append_int32(document.handle, key, -1, value)
+    ok = bson_append_int32(handle(document), key, -1, value)
     if !ok
         error("Couldn't append Int32 to BSON document.")
     end
@@ -672,7 +676,7 @@ function Base.setindex!(document::BSON, value::Int32, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::AbstractString, key::AbstractString)
-    ok = bson_append_utf8(document.handle, key, -1, value, -1)
+    ok = bson_append_utf8(handle(document), key, -1, value, -1)
     if !ok
         error("Couldn't append String to BSON document.")
     end
@@ -680,7 +684,7 @@ function Base.setindex!(document::BSON, value::AbstractString, key::AbstractStri
 end
 
 function Base.setindex!(document::BSON, value::Bool, key::AbstractString)
-    ok = bson_append_bool(document.handle, key, -1, value)
+    ok = bson_append_bool(handle(document), key, -1, value)
     if !ok
         error("Couldn't append Bool to BSON document.")
     end
@@ -688,7 +692,7 @@ function Base.setindex!(document::BSON, value::Bool, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::Float64, key::AbstractString)
-    ok = bson_append_double(document.handle, key, -1, value)
+    ok = bson_append_double(handle(document), key, -1, value)
     if !ok
         error("Couldn't append Float64 to BSON document.")
     end
@@ -696,7 +700,7 @@ function Base.setindex!(document::BSON, value::Float64, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::Dec128, key::AbstractString)
-    ok = bson_append_decimal128(document.handle, key, -1, value)
+    ok = bson_append_decimal128(handle(document), key, -1, value)
     if !ok
         error("Couldn't append Dec128 to BSON document.")
     end
@@ -704,7 +708,7 @@ function Base.setindex!(document::BSON, value::Dec128, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::DateTime, key::AbstractString)
-    ok = bson_append_date_time(document.handle, key, -1, datetime2isodate(value))
+    ok = bson_append_date_time(handle(document), key, -1, datetime2isodate(value))
     if !ok
         error("Couldn't append DateTime to BSON document.")
     end
@@ -712,18 +716,18 @@ function Base.setindex!(document::BSON, value::DateTime, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::BSON, key::AbstractString)
-    ok = bson_append_document(document.handle, key, -1, value.handle)
+    ok = bson_append_document(handle(document), key, -1, handle(value))
     if !ok
         error("Couldn't append Sub-Document BSON to BSON document.")
     end
     nothing
 end
 
-Base.setindex!(document::BSON, value::Dict, key::AbstractString) = setindex!(document, BSON(value), key)
+Base.setindex!(document::BSON, value::AbstractDict, key::AbstractString) = setindex!(document, BSON(value), key)
 
 function Base.setindex!(document::BSON, value::Vector{T}, key::AbstractString) where T
     sub_document = BSON(value)
-    ok = bson_append_array(document.handle, key, -1, sub_document.handle)
+    ok = bson_append_array(handle(document), key, -1, handle(sub_document))
     if !ok
         error("Couldn't append array to BSON document.")
     end
@@ -731,7 +735,7 @@ function Base.setindex!(document::BSON, value::Vector{T}, key::AbstractString) w
 end
 
 function Base.setindex!(document::BSON, value::BSONCode, key::AbstractString)
-    ok = bson_append_code(document.handle, key, -1, value.code)
+    ok = bson_append_code(handle(document), key, -1, value.code)
     if !ok
         error("Couldn't append String to BSON document.")
     end
@@ -743,7 +747,7 @@ function Base.setindex!(document::BSON, value::Date, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::Vector{UInt8}, key::AbstractString)
-  ok = bson_append_binary(document.handle, key, -1, BSON_SUBTYPE_BINARY, value, UInt32(length(value)))
+  ok = bson_append_binary(handle(document), key, -1, BSON_SUBTYPE_BINARY, value, UInt32(length(value)))
   if !ok
       error("Couldn't append array to BSON document.")
   end
@@ -752,7 +756,7 @@ end
 
 function Base.setindex!(document::BSON, value::UUID, key::AbstractString)
     value = [reinterpret(UInt8, [hton(value.value)])...]
-    ok = bson_append_binary(document.handle, key, -1, BSON_SUBTYPE_UUID, value, UInt32(length(value)))
+    ok = bson_append_binary(handle(document), key, -1, BSON_SUBTYPE_UUID, value, UInt32(length(value)))
     if !ok
         error("Couldn't append uuid to BSON document.")
     end
@@ -760,7 +764,7 @@ function Base.setindex!(document::BSON, value::UUID, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, ::Nothing, key::AbstractString)
-    ok = bson_append_null(document.handle, key, -1)
+    ok = bson_append_null(handle(document), key, -1)
     if !ok
         error("Couldn't append missing value to BSON document.")
     end
@@ -838,7 +842,7 @@ function write_bson(io::IO, bson::BSON;
 
     bson_writer(io, initial_buffer_capacity=initial_buffer_capacity) do writer
         write_bson(writer) do dest
-            bson_copy_to_noinit(bson.handle, dest.handle)
+            bson_copy_to_noinit(handle(bson), handle(dest))
         end
     end
 
@@ -905,7 +909,7 @@ function write_bson(io::IO, bson_list::Vector{BSON};
     bson_writer(io, initial_buffer_capacity=initial_buffer_capacity) do writer
         for src_bson in bson_list
             write_bson(writer) do dest
-                bson_copy_to_noinit(src_bson.handle, dest.handle)
+                bson_copy_to_noinit(handle(src_bson), handle(dest))
             end
         end
     end
@@ -1033,10 +1037,10 @@ end
 
 function read_next_bson(reader::BSONJSONReader, buffer::BSON=BSON()) :: Union{Nothing, BSON}
     err_ref = Ref{BSONError}()
-    ok = bson_json_reader_read(reader.handle, buffer.handle, err_ref)
+    ok = bson_json_reader_read(reader.handle, handle(buffer), err_ref)
 
     if ok == 1 # successful and data was read
-        bson_copy_handle = bson_copy(buffer.handle)
+        bson_copy_handle = bson_copy(handle(buffer))
         return BSON(bson_copy_handle)
     elseif ok == 0 # successful and no data was read
         return nothing
@@ -1091,4 +1095,111 @@ function read_bson_from_json(filepath::AbstractString) :: Vector{BSON}
     finally
         destroy!(reader)
     end
+end
+
+function Base.getindex(document::BSON, index::AbstractVector, dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict
+    v_iter = values(document)
+    n = Int(length(v_iter))
+    iter_ref = v_iter.bson_iter_ref
+    i = 0
+    vv = Vector{Any}(undef, n)
+    while(bson_iter_next(iter_ref))
+        i += 1
+        if i ∈ index
+            vv[i] = get_value(iter_ref; dicttype = D)
+        end
+    end
+    vv[index]
+end
+
+function Base.merge!(document::BSON)
+    kk_all = collect(keys(document))
+    n = length(kk_all)
+
+    index_dict = OrderedDict{String, Int}()
+    for (i, k) in enumerate(kk_all)
+        index_dict[k] = i   # always overwrite → keeps the last index
+    end
+
+    kk = collect(keys(index_dict))
+    index = collect(values(index_dict))
+    length(kk) == n && return document
+
+    iter_ref = keys(document).bson_iter_ref
+    vv = document[index]
+    bson_reinit(document)
+    for (k, v) in zip(kk, vv)
+        document[k] = v
+    end
+    document
+end
+
+function Base.getindex(document::BSON, key::Symbol, @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict
+    k = String(key)
+    iter_ref = keys(document).bson_iter_ref
+    i = 0
+
+    while bson_iter_find(iter_ref, k)
+        i += 1
+    end
+    i == 0 && throw(KeyError(k))
+    bson_iter_init(iter_ref, getfield(document, :handle))
+    for _ in 1:i
+        bson_iter_find(iter_ref, k)
+    end
+    return get_value(iter_ref; dicttype = D)
+end
+
+function Base.setindex!(document::BSON, value, key::Symbol)
+    k_str::String = String(key)
+    iter_ref = Ref{BSONIter}()
+    key_exists = bson_iter_init_find(iter_ref, handle(document), k_str)
+
+    if key_exists
+        # append something inexpensive to parse as dummy value
+        document[k_str] = 0
+        kk_all = collect(keys(document))
+        n = length(kk_all)
+        
+        index_dict = OrderedDict{String, Int}()
+        for (i, k) in enumerate(kk_all)
+            index_dict[k] = i   # always overwrite → keeps the last index
+        end
+        
+        kk = collect(keys(index_dict))
+        index = collect(values(index_dict))
+        k_pos = findfirst(==(k_str), kk)
+        
+        vv = document[index]
+        # replace the dummy value by the real value
+        vv[k_pos] = value
+        bson_reinit(document)
+        for (k, v) in zip(kk, vv)
+            document[k] = k == k_str ? value : v
+        end
+        value
+    else
+        document[k_str] = value
+    end
+end
+
+function Base.getproperty(document::BSON, key::Symbol)
+    if key == :handle && !haskey(document, "handle")
+        @warn "The syntax `document.handle` to access the field `:handle` is deprecated. Please use the new
+        `Mongoc.handle(document)` or `getfield(document, :handle)` instead."
+        return getfield(document, :handle)
+    end
+    document[key]
+end
+
+function Base.setproperty!(document::BSON, key::Symbol, value)
+    document[key] = value
+end
+
+function Base.setproperty!(document::BSON, key::Symbol, value::Ptr{Nothing})
+    setfield!(document, :handle, value)
+end
+
+function Base.propertynames(document::BSON)
+    Symbol.(keys(document))
 end
