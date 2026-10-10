@@ -6,6 +6,7 @@ using Test
 using Dates
 using DecFP
 using Distributed
+using OrderedCollections
 
 @testset "BSON" begin
 
@@ -171,6 +172,7 @@ using Distributed
         @test doc["_id"] == new_id
         @test doc["array"] == [1, 2, false, "inner_string"]
         @test doc["document"] == Dict("a"=>1, "b"=>"b_string")
+        @test doc["document", OrderedDict] == OrderedDict("a"=>1, "b"=>"b_string")
         @test doc["null"] == nothing
 
         @test_throws KeyError doc["invalid key"]
@@ -187,7 +189,7 @@ using Distributed
         @test doc_dict["_id"] == new_id
         @test doc_dict["array"] == [1, 2, false, "inner_string"]
         @test doc_dict["document"] == Dict("a"=>1, "b"=>"b_string")
-        @test doc_dict["null"] == nothing
+        @test doc_dict["null"] === nothing
 
         @testset "convert(Dict, BSON)" begin
             doc_dict2 = @inferred(convert(Dict, doc))
@@ -202,6 +204,40 @@ using Distributed
 
         @test_throws MethodError Mongoc.get_array(doc, "float_array", String)
         @test_throws ErrorException Mongoc.get_array(doc, "document", Any)
+
+        @test doc.a == 1
+        @test doc.b == 2.2
+        @test doc.str == "my string"
+        @test doc.bool_t
+        @test !doc.bool_f
+        @test doc._id == new_id
+        @test doc.array == [1, 2, false, "inner_string"]
+        @test doc.document == Dict("a"=>1, "b"=>"b_string")
+        @test doc.null == nothing
+
+        @test doc[:document, OrderedDict] == OrderedDict("a"=>1, "b"=>"b_string")
+        Mongoc.DEFAULT_DICT_TYPE[] = OrderedDict
+        @test doc.document == OrderedDict("a"=>1, "b"=>"b_string")
+        Mongoc.DEFAULT_DICT_TYPE[] = Dict
+
+
+        # setindex!() with a key of type String adds another pair
+        doc["a"] = "new_a"
+        pairs = collect(doc)
+        filter!(p -> p[1] == "a", pairs)
+        @test length(pairs) == 2
+        @test pairs[1][2] == 1
+        @test pairs[2][2] == "new_a"
+        # getindex() retrieves the first pair
+        @test_broken doc["a"] != 1
+        @test_broken doc["a"] == "new_a"
+        # getindex with a key of type Symbol and getproperty() retrieve the last pair
+        @test doc[:a] == "new_a"
+        @test doc.a == "new_a"
+        merge!(doc)
+        @test doc["a"] == "new_a"
+        doc.a = "even_newer_a"
+        @test doc["a"] == "even_newer_a"
     end
 
     @testset "BSON write" begin

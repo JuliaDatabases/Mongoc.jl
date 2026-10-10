@@ -10,6 +10,8 @@ Base.convert(::Type{T}, t::BSONType) where {T<:Number} = T(reinterpret(Cint, t))
 Base.convert(::Type{BSONType}, n::T) where {T<:Number} = reinterpret(BSONType, Cint(n))
 BSONType(u::UInt8) = convert(BSONType, u)
 
+const DEFAULT_DICT_TYPE = Ref{Type{<:AbstractDict}}(Dict)
+
 #
 # Constants for BSONType
 #
@@ -388,7 +390,7 @@ function BSON(args::Pair...)
     result = BSON()
 
     for (k, v) in args
-        result[k] = v
+        result[String(k)] = v
     end
 
     return result
@@ -508,16 +510,16 @@ Base.keys(doc::BSON) = BSONIterator(doc, IterateKeys)
 Base.values(doc::BSON) = BSONIterator(doc, IterateValues)
 
 """
-    as_dict(document::BSON) :: Dict{String}
+    as_dict(document::BSON; dicttype::Type{D} = DEFAULT_DICT_TYPE[]) :: Dict{String}
 
-Converts a BSON document to a Julia `Dict`.
+Converts a BSON document to a given dicttype, defaulting to DEFAULT_DICT_TYPE[], which defaults to Dict
 """
-as_dict(document::BSON) = convert(Dict, document)
+as_dict(document::BSON; @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE[]) where D <: AbstractDict = convert(D, document)
 
-function as_dict(iter_ref::Ref{BSONIter})
-    result = Dict{String, Any}()
+function as_dict(iter_ref::Ref{BSONIter}; @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE[]) where D <: AbstractDict
+    result = D{String, Any}()
     while bson_iter_next(iter_ref)
-        result[unsafe_string(bson_iter_key(iter_ref))] = get_value(iter_ref)
+        result[unsafe_string(bson_iter_key(iter_ref))] = get_value(iter_ref; dicttype)
     end
     return result
 end
@@ -557,7 +559,7 @@ function get_array(iter_ref::Ref{BSONIter}, ::Type{T}) where T
     return result_array
 end
 
-function get_value(iter_ref::Ref{BSONIter})
+function get_value(iter_ref::Ref{BSONIter}; @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE[]) where D <: AbstractDict
     bson_type = bson_iter_type(iter_ref)
 
     if bson_type == BSON_TYPE_UTF8
@@ -589,7 +591,7 @@ function get_value(iter_ref::Ref{BSONIter})
         if !ok
             error("Couldn't iterate document inside BSON.")
         end
-        return as_dict(child_iter_ref)
+        return as_dict(child_iter_ref; dicttype)
 
     elseif bson_type == BSON_TYPE_BINARY
 
@@ -617,10 +619,10 @@ function get_value(iter_ref::Ref{BSONIter})
     end
 end
 
-function Base.getindex(document::BSON, key::AbstractString)
+function Base.getindex(document::BSON, key::AbstractString, @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE[]) where D <: AbstractDict
     iter_ref = Ref{BSONIter}()
     bson_iter_init_find(iter_ref, document.handle, key) || throw(KeyError(key))
-    return get_value(iter_ref)
+    return get_value(iter_ref; dicttype = D)
 end
 
 function Base.get(document::BSON, key::AbstractString, default::Any)
@@ -1096,4 +1098,111 @@ function read_bson_from_json(filepath::AbstractString) :: Vector{BSON}
     finally
         destroy!(reader)
     end
+end
+
+function Base.getindex(document::BSON, index::AbstractVector, dicttype::Type{D} = DEFAULT_DICT_TYPE[]) where D <: AbstractDict
+    v_iter = values(document)
+    n = Int(length(v_iter))
+    iter_ref = v_iter.bson_iter_ref
+    i = 0
+    vv = Vector{Any}(undef, n)
+    while(bson_iter_next(iter_ref))
+        i += 1
+        if i ∈ index
+            vv[i] = get_value(iter_ref; dicttype = D)
+        end
+    end
+    vv[index]
+end
+
+function Base.merge!(document::BSON)
+    kk_all = collect(keys(document))
+    n = length(kk_all)
+
+    index_dict = OrderedDict{String, Int}()
+    for (i, k) in enumerate(kk_all)
+        index_dict[k] = i   # always overwrite → keeps the last index
+    end
+
+    kk = collect(keys(index_dict))
+    index = collect(values(index_dict))
+    length(kk) == n && return document
+
+    iter_ref = keys(document).bson_iter_ref
+    vv = document[index]
+    bson_reinit(document)
+    for (k, v) in zip(kk, vv)
+        document[k] = v
+    end
+    document
+end
+
+function Base.getindex(document::BSON, key::Symbol, @nospecialize dicttype::Type{D} = DEFAULT_DICT_TYPE[]) where D <: AbstractDict
+    k = String(key)
+    iter_ref = keys(document).bson_iter_ref
+    i = 0
+
+    while bson_iter_find(iter_ref, k)
+        i += 1
+    end
+    i == 0 && throw(KeyError(k))
+    bson_iter_init(iter_ref, getfield(document, :handle))
+    for _ in 1:i
+        bson_iter_find(iter_ref, k)
+    end
+    return get_value(iter_ref; dicttype = D)
+end
+
+function Base.setindex!(document::BSON, value, key::Symbol)
+    k_str::String = String(key)
+    iter_ref = Ref{BSONIter}()
+    key_exists = bson_iter_init_find(iter_ref, document.handle, k_str)
+
+    if key_exists
+        # append something inexpensive to parse as dummy value
+        document[k_str] = 0
+        kk_all = collect(keys(document))
+        n = length(kk_all)
+        
+        index_dict = OrderedDict{String, Int}()
+        for (i, k) in enumerate(kk_all)
+            index_dict[k] = i   # always overwrite → keeps the last index
+        end
+        
+        kk = collect(keys(index_dict))
+        index = collect(values(index_dict))
+        k_pos = findfirst(==(k_str), kk)
+        
+        vv = document[index]
+        # replace the dummy value by the real value
+        vv[k_pos] = value
+        bson_reinit(document)
+        for (k, v) in zip(kk, vv)
+            document[k] = k == k_str ? value : v
+        end
+        value
+    else
+        document[k_str] = value
+    end
+end
+
+function Base.getproperty(document::BSON, key::Symbol)
+    key == :__handle__ && !haskey(document, :__handle__) && haskey(document, :handle) && return document[:handle]
+    key == :handle ? getfield(document, :handle) : document[key]
+end
+
+function Base.setproperty!(document::BSON, key::Symbol, value)
+    document[key] = value
+end
+
+function Base.setproperty!(document::BSON, key::Symbol, value::Ptr{Nothing})
+    if key == :handle
+        setfield!(document, :handle, value)
+    else
+        document[key] = value
+    end
+end
+
+function Base.propertynames(document::BSON)
+    Symbol.(keys(document))
 end

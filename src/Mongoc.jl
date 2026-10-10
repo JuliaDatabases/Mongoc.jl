@@ -4,7 +4,7 @@ using MongoC_jll
 import Libdl
 
 import Base.UUID
-using Dates, DecFP, Serialization
+using Dates, DecFP, Serialization, OrderedCollections
 
 #
 # utility functions for date conversion
