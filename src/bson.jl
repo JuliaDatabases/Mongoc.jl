@@ -392,7 +392,8 @@ function BSON(args::Pair...)
     result = BSON()
 
     for (k, v) in args
-        result[String(k)] = v
+        # keep String keys as they are: converting them again costs about as much as the append itself
+        result[k isa AbstractString ? k : String(k)] = v
     end
 
     return result
@@ -512,9 +513,12 @@ Base.keys(doc::BSON) = BSONIterator(doc, IterateKeys)
 Base.values(doc::BSON) = BSONIterator(doc, IterateValues)
 
 """
-    as_dict(document::BSON; dicttype::Type{D} = DEFAULT_DICT_TYPE) :: Dict{String}
+    as_dict(document::BSON; dicttype::Type{<:AbstractDict} = DEFAULT_DICT_TYPE)
 
-Converts a BSON document to a given dicttype, defaulting to DEFAULT_DICT_TYPE (OrderedDict)
+Converts a BSON document to a dictionary of type `dicttype`, which defaults to `DEFAULT_DICT_TYPE`
+(`OrderedDict`) and is also used for nested documents. `dicttype` may be an unparameterized type
+such as `Dict`, which is used as `Dict{String, Any}`, or a fully parameterized one such as
+`OrderedDict{String, Any}`.
 """
 as_dict(document::BSON; dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict =
     as_dict(bson_iter_init(document), D)
@@ -524,8 +528,7 @@ as_dict(document::BSON; dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: Abstra
 _new_dict(::Type{D}) where D <: AbstractDict =
     D isa UnionAll ? Base.typename(D).wrapper{String, Any}() : D()
 
-as_dict(iter_ref::Ref{BSONIter}; dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict =
-    as_dict(iter_ref, D)
+as_dict(iter_ref::Ref{BSONIter}) = as_dict(iter_ref, DEFAULT_DICT_TYPE)
 
 # The dict type is passed positionally internally, which is considerably faster than a keyword argument.
 function as_dict(iter_ref::Ref{BSONIter}, ::Type{D}) where D <: AbstractDict
@@ -556,8 +559,7 @@ function get_array(document::BSON, key::AbstractString, ::Type{T}) where T
     return get_array(iter_ref, T)
 end
 
-get_array(iter_ref::Ref{BSONIter}, ::Type{T}; dicttype::Type{D} = DEFAULT_DICT_TYPE) where {T, D <: AbstractDict} =
-    get_array(iter_ref, T, D)
+get_array(iter_ref::Ref{BSONIter}, ::Type{T}) where T = get_array(iter_ref, T, DEFAULT_DICT_TYPE)
 
 function get_array(iter_ref::Ref{BSONIter}, ::Type{T}, ::Type{D}) where {T, D <: AbstractDict}
     bson_type = bson_iter_type(iter_ref)
@@ -574,8 +576,7 @@ function get_array(iter_ref::Ref{BSONIter}, ::Type{T}, ::Type{D}) where {T, D <:
     return result_array
 end
 
-get_value(iter_ref::Ref{BSONIter}; dicttype::Type{D} = DEFAULT_DICT_TYPE) where D <: AbstractDict =
-    get_value(iter_ref, D)
+get_value(iter_ref::Ref{BSONIter}) = get_value(iter_ref, DEFAULT_DICT_TYPE)
 
 function get_value(iter_ref::Ref{BSONIter}, ::Type{D}) where D <: AbstractDict
     bson_type = bson_iter_type(iter_ref)
@@ -1141,6 +1142,8 @@ end
 
 # Make `document` take over the contents of `replacement` by swapping native handles.
 # `replacement` is left owning the old handle and will free it when finalized.
+# This assumes that `document` owns its handle. A `BSON(ptr; enable_finalizer = false)` wrapper only
+# borrows the pointer, so it must not be passed here: its borrowed handle would end up with a finalizer.
 function swap_handles!(document::BSON, replacement::BSON)
     old = handle(document)
     setfield!(document, :handle, handle(replacement))
@@ -1174,7 +1177,14 @@ function collapse_duplicates(document::BSON, replaced_key::Union{String, Nothing
     result
 end
 
-function Base.merge!(document::BSON)
+"""
+    deduplicate!(document::BSON) :: BSON
+
+Collapse duplicate keys of `document` in place. Each key is kept once, at the position of its first
+occurrence, with the value of its last occurrence. The elements are copied as raw bytes, so values that
+Mongoc cannot decode survive. `document` is left untouched if the operation fails.
+"""
+function deduplicate!(document::BSON)
     allunique(keys(document)) && return document
     # the result is built aside, so that `document` is untouched on failure
     swap_handles!(document, collapse_duplicates(document))
@@ -1220,8 +1230,8 @@ end
 
 function Base.getproperty(document::BSON, key::Symbol)
     if key == :handle && !haskey(document, "handle")
-        @warn "The syntax `document.handle` to access the field `:handle` is deprecated. Please use the new
-        `Mongoc.handle(document)` or `getfield(document, :handle)` instead."
+        Base.depwarn("The syntax `document.handle` to access the field `:handle` is deprecated. Please use the new
+        `Mongoc.handle(document)` or `getfield(document, :handle)` instead.", :getproperty)
         return getfield(document, :handle)
     end
     document[key]

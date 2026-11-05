@@ -227,13 +227,12 @@ using OrderedCollections
         @test length(pairs) == 2
         @test pairs[1][2] == 1
         @test pairs[2][2] == "new_a"
-        # getindex() retrieves the first pair
-        @test_broken doc["a"] != 1
-        @test_broken doc["a"] == "new_a"
+        # getindex() with a String key retrieves the first pair (as bson_iter_init_find does)
+        @test doc["a"] == 1
         # getindex with a key of type Symbol and getproperty() retrieve the last pair
         @test doc[:a] == "new_a"
         @test doc.a == "new_a"
-        merge!(doc)
+        Mongoc.deduplicate!(doc)
         @test doc["a"] == "new_a"
         doc.a = "even_newer_a"
         @test doc["a"] == "even_newer_a"
@@ -258,18 +257,31 @@ using OrderedCollections
         @test collect(keys(d)) == ["a", "b"]
         @test d.a == 2 && d.b == "y"
 
-        # merge! collapses duplicates without decoding, keeping the last value at the first position
+        # deduplicate! collapses duplicates without decoding, keeping the last value at the first position
         d = Mongoc.BSON("a" => Int32(1), "b" => "x")
         d["a"] = Int32(2)
-        merge!(d)
+        Mongoc.deduplicate!(d)
         @test collect(keys(d)) == ["a", "b"] && d["a"] == 2 && d["b"] == "x"
-        @test merge!(d) === d
+        @test Mongoc.deduplicate!(d) === d
+        # Base.merge! keeps its meaning: with no other dictionaries it leaves the document alone
+        d = Mongoc.BSON("a" => Int32(1))
+        d["a"] = Int32(2)
+        merge!(d)
+        @test length(d) == 2
 
         # only the handle property accepts a native pointer
         d = Mongoc.BSON("a" => Int32(1))
         h = Mongoc.handle(d)
         @test_throws MethodError d.unrelated = C_NULL
         @test Mongoc.handle(d) == h
+
+        # the deprecated `document.handle` syntax still works, and goes through depwarn (not @warn)
+        @test (@test_deprecated d.handle) == h
+
+        # keys of the Pair constructor: Strings are kept, other AbstractStrings and Symbols are converted
+        d = Mongoc.BSON("a" => 1, SubString("xbc", 2) => 2, :c => 3)
+        @test collect(keys(d)) == ["a", "bc", "c"]
+        @test d["bc"] == 2 && d[:c] == 3
 
         # Boolean masks select by value
         d = Mongoc.BSON("a" => Int32(1), "b" => Int32(2))
