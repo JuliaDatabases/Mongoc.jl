@@ -585,7 +585,7 @@ function mongoc_collection_read_command_with_opts(collection_handle::Ptr{Cvoid},
                                                     read_prefs::Ptr{Cvoid}, bson_opts_handle::Ptr{Cvoid},
                                                     bson_reply::Ptr{Cvoid}, bson_error_ref::Ref{BSONError})
 
-    ccall((:mongoc_collection_command_simple, libmongoc), Bool,
+    ccall((:mongoc_collection_read_command_with_opts, libmongoc), Bool,
           (Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ptr{Cvoid}, Ref{BSONError}),
            collection_handle, bson_command, read_prefs, bson_opts_handle, bson_reply, bson_error_ref)
 end
