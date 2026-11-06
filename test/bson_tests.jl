@@ -278,6 +278,23 @@ using OrderedCollections
         # the deprecated `document.handle` syntax still works, and goes through depwarn (not @warn)
         @test (@test_deprecated d.handle) == h
 
+        # ... also for assigning a pointer, which is only accepted for the :handle property
+        # the document takes over a copy, so it still owns exactly one handle, and the old one is released
+        d2 = Mongoc.BSON("a" => Int32(1))
+        old_handle = Mongoc.handle(d2)
+        new_handle = Mongoc.bson_copy(old_handle)
+        d2.handle = new_handle
+        @test Mongoc.handle(d2) == new_handle
+        @test d2["a"] == 1
+        Mongoc.bson_destroy(old_handle)
+
+        # property names are the document's keys, e.g. for tab completion
+        @test propertynames(Mongoc.BSON("x" => 1, "y" => 2)) == [:x, :y]
+
+        # the internal iterator form without a dict type uses the default type
+        iter_ref = Mongoc.bson_iter_init(Mongoc.BSON("n" => Mongoc.BSON("k" => 1)))
+        @test Mongoc.as_dict(iter_ref) isa Mongoc.DEFAULT_DICT_TYPE{String, Any}
+
         # keys of the Pair constructor: Strings are kept, other AbstractStrings and Symbols are converted
         d = Mongoc.BSON("a" => 1, SubString("xbc", 2) => 2, :c => 3)
         @test collect(keys(d)) == ["a", "bc", "c"]
