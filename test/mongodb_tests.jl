@@ -937,6 +937,19 @@ const DB_NAME = "mongoc"
             @test reply["ok"] == 1
         end
 
+        @testset "collection read_command" begin
+            # collection is not empty at this point, so a count has to report its documents
+            command = Mongoc.BSON("count" => collection.name)
+            reply = Mongoc.read_command(collection, command)
+            @test reply["ok"] == 1
+            @test reply["n"] == Mongoc.count_documents(collection)
+            @test reply["n"] > 0
+
+            options = Mongoc.BSON("comment" => "read_command with options")
+            reply = Mongoc.read_command(collection, command; options=options)
+            @test reply["ok"] == 1
+        end
+
         Mongoc.drop(collection)
     end
 
