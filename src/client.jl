@@ -86,7 +86,7 @@ end
 Queries for databases.
 """
 function find_databases(client::Client; options::Union{Nothing, BSON}=nothing) :: Cursor
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
     cursor_handle = mongoc_client_find_databases_with_opts(client.handle, options_handle)
     if cursor_handle == C_NULL
         error("Couldn't execute query.")

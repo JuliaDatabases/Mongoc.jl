@@ -27,7 +27,7 @@ BSON("{ "ok" : 1.0 }")
 function command_simple(database::Database, command::BSON) :: BSON
     reply = BSON()
     err_ref = Ref{BSONError}()
-    ok = mongoc_database_command_simple(database.handle, command.handle, C_NULL, reply.handle,
+    ok = mongoc_database_command_simple(database.handle, handle(command), C_NULL, handle(reply),
         err_ref)
     if !ok
         throw(err_ref[])
@@ -46,11 +46,11 @@ See https://mongoc.org/libmongoc/current/mongoc_database_read_write_command_with
 function write_command(database::Database, command::BSON;
         options::Union{Nothing, BSON}=nothing) :: BSON
 
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
     reply = BSON()
     err_ref = Ref{BSONError}()
-    ok = mongoc_database_write_command_with_opts(database.handle, command.handle,
-            options_handle, reply.handle, err_ref)
+    ok = mongoc_database_write_command_with_opts(database.handle, handle(command),
+            options_handle, handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -68,11 +68,11 @@ See https://mongoc.org/libmongoc/current/mongoc_database_read_command_with_opts.
 function read_command(database::Database, command::BSON;
         options::Union{Nothing, BSON}=nothing) :: BSON
 
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
     reply = BSON()
     err_ref = Ref{BSONError}()
-    ok = mongoc_database_read_command_with_opts(database.handle, command.handle,
-            C_NULL, options_handle, reply.handle, err_ref)
+    ok = mongoc_database_read_command_with_opts(database.handle, handle(command),
+            C_NULL, options_handle, handle(reply), err_ref)
     if !ok
         throw(err_ref[])
     end
@@ -91,8 +91,8 @@ function add_user(database::Database, username::String, password::String,
         roles::Union{Nothing, BSON}, custom_data::Union{Nothing, BSON}=nothing)
 
     err_ref = Ref{BSONError}()
-    roles_handle = roles == nothing ? C_NULL : roles.handle
-    custom_data_handle = custom_data == nothing ? C_NULL : custom_data.handle
+    roles_handle = roles == nothing ? C_NULL : handle(roles)
+    custom_data_handle = custom_data == nothing ? C_NULL : handle(custom_data)
     ok = mongoc_database_add_user(database.handle, username, password, roles_handle,
                                   custom_data_handle, err_ref)
     if !ok
@@ -131,7 +131,7 @@ end
 Queries for collections in a `database`.
 """
 function find_collections(database::Database; options::Union{Nothing, BSON}=nothing) :: Cursor
-    options_handle = options == nothing ? C_NULL : options.handle
+    options_handle = options == nothing ? C_NULL : handle(options)
     cursor_handle = mongoc_database_find_collections_with_opts(database.handle, options_handle)
     if cursor_handle == C_NULL
         error("Couldn't execute query.")
@@ -161,7 +161,7 @@ function drop(database::Database;
         options::Union{Nothing, BSON}=nothing)
 
     err_ref = Ref{BSONError}()
-    opts_handle = options == nothing ? C_NULL : options.handle
+    opts_handle = options == nothing ? C_NULL : handle(options)
     ok = mongoc_database_drop_with_opts(database.handle, opts_handle, err_ref)
     if !ok
         throw(err_ref[])

@@ -12,7 +12,7 @@
 #
 
 import Mongoc
-
+import Mongoc.handle
 using Test
 using Dates
 

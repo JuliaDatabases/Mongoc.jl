@@ -151,6 +151,12 @@ function bson_copy(bson_document::Ptr{Cvoid})
     ccall((:bson_copy, libbson), Ptr{Cvoid}, (Ptr{Cvoid},), bson_document)
 end
 
+# copies the element `iter_ref` points to, keeping its key and without decoding it
+function bson_append_iter(dst_bson_handle::Ptr{Cvoid}, iter_ref::Ref{BSONIter})
+    ccall((:bson_append_iter, libbson), Bool, (Ptr{Cvoid}, Ptr{UInt8}, Cint, Ref{BSONIter}),
+          dst_bson_handle, C_NULL, 0, iter_ref)
+end
+
 function bson_has_field(bson_document::Ptr{Cvoid}, key::AbstractString)
     ccall((:bson_has_field, libbson), Bool, (Ptr{Cvoid}, Cstring), bson_document, key)
 end

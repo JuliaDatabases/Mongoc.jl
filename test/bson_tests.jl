@@ -1,11 +1,12 @@
 
 import Mongoc
-
+import Mongoc.handle
 import Base.UUID
 using Test
 using Dates
 using DecFP
 using Distributed
+using OrderedCollections
 
 @testset "BSON" begin
 
@@ -106,7 +107,7 @@ using Distributed
         uuid = UUID("a1f18b06-2210-499b-8313-28e69090511f")
         uuid_bytes = [0xa1, 0xf1, 0x8b, 0x06, 0x22, 0x10, 0x49, 0x9b, 0x83, 0x13, 0x28, 0xe6, 0x90, 0x90, 0x51, 0x1f]
         bson = Mongoc.BSON("uuid" => uuid)
-        Mongoc.bson_append_binary(bson.handle, "uuid2", -1, Mongoc.BSON_SUBTYPE_UUID, uuid_bytes, UInt32(16))
+        Mongoc.bson_append_binary(handle(bson), "uuid2", -1, Mongoc.BSON_SUBTYPE_UUID, uuid_bytes, UInt32(16))
         @test isa(bson["uuid"], UUID)
         @test bson["uuid"] == uuid
         @test isa(bson["uuid2"], UUID)
@@ -171,6 +172,9 @@ using Distributed
         @test doc["_id"] == new_id
         @test doc["array"] == [1, 2, false, "inner_string"]
         @test doc["document"] == Dict("a"=>1, "b"=>"b_string")
+        @test doc["document", OrderedDict] == OrderedDict("a"=>1, "b"=>"b_string")
+        @test doc["document", OrderedDict{String,Any}] isa OrderedDict{String,Any}
+        @test doc["document", OrderedDict{String,Any}] == OrderedDict("a"=>1, "b"=>"b_string")
         @test doc["null"] == nothing
 
         @test_throws KeyError doc["invalid key"]
@@ -187,7 +191,7 @@ using Distributed
         @test doc_dict["_id"] == new_id
         @test doc_dict["array"] == [1, 2, false, "inner_string"]
         @test doc_dict["document"] == Dict("a"=>1, "b"=>"b_string")
-        @test doc_dict["null"] == nothing
+        @test doc_dict["null"] === nothing
 
         @testset "convert(Dict, BSON)" begin
             doc_dict2 = @inferred(convert(Dict, doc))
@@ -202,6 +206,105 @@ using Distributed
 
         @test_throws MethodError Mongoc.get_array(doc, "float_array", String)
         @test_throws ErrorException Mongoc.get_array(doc, "document", Any)
+
+        @test doc.a == 1
+        @test doc.b == 2.2
+        @test doc.str == "my string"
+        @test doc.bool_t
+        @test !doc.bool_f
+        @test doc._id == new_id
+        @test doc.array == [1, 2, false, "inner_string"]
+        @test doc.document == Dict("a"=>1, "b"=>"b_string")
+        @test doc.null == nothing
+
+        @test doc[:document, OrderedDict] == OrderedDict("a"=>1, "b"=>"b_string")
+
+
+        # setindex!() with a key of type String adds another pair
+        doc["a"] = "new_a"
+        pairs = collect(doc)
+        filter!(p -> p[1] == "a", pairs)
+        @test length(pairs) == 2
+        @test pairs[1][2] == 1
+        @test pairs[2][2] == "new_a"
+        # getindex() with a String key retrieves the first pair (as bson_iter_init_find does)
+        @test doc["a"] == 1
+        # getindex with a key of type Symbol and getproperty() retrieve the last pair
+        @test doc[:a] == "new_a"
+        @test doc.a == "new_a"
+        Mongoc.deduplicate!(doc)
+        @test doc["a"] == "new_a"
+        doc.a = "even_newer_a"
+        @test doc["a"] == "even_newer_a"
+
+        # a value that cannot be encoded must not destroy the document
+        d = Mongoc.BSON("a" => Int32(1), "b" => "keep")
+        @test_throws MethodError d.a = big(2)
+        @test d["a"] == 1 && d["b"] == "keep" && length(d) == 2
+
+        # unique keys: value is replaced in place, other elements (even undecodable ones) survive
+        d = Mongoc.BSON("a" => Int32(1), "b" => Mongoc.BSON("x" => [1, 2]), "c" => "z")
+        d.b = "new"
+        @test collect(keys(d)) == ["a", "b", "c"]
+        @test d.a == 1 && d.b == "new" && d.c == "z"
+        d.c = Mongoc.BSON("y" => 1)
+        @test d.c == Dict("y" => 1) && d.a == 1
+
+        # duplicate keys collapse to the last value at the position of the first occurrence
+        d = Mongoc.BSON("a" => Int32(1), "b" => "x")
+        d["a"] = Int32(2)
+        d.b = "y"
+        @test collect(keys(d)) == ["a", "b"]
+        @test d.a == 2 && d.b == "y"
+
+        # deduplicate! collapses duplicates without decoding, keeping the last value at the first position
+        d = Mongoc.BSON("a" => Int32(1), "b" => "x")
+        d["a"] = Int32(2)
+        Mongoc.deduplicate!(d)
+        @test collect(keys(d)) == ["a", "b"] && d["a"] == 2 && d["b"] == "x"
+        @test Mongoc.deduplicate!(d) === d
+        # Base.merge! keeps its meaning: with no other dictionaries it leaves the document alone
+        d = Mongoc.BSON("a" => Int32(1))
+        d["a"] = Int32(2)
+        merge!(d)
+        @test length(d) == 2
+
+        # only the handle property accepts a native pointer
+        d = Mongoc.BSON("a" => Int32(1))
+        h = Mongoc.handle(d)
+        @test_throws MethodError d.unrelated = C_NULL
+        @test Mongoc.handle(d) == h
+
+        # the deprecated `document.handle` syntax still works, and goes through depwarn (not @warn)
+        @test (@test_deprecated d.handle) == h
+
+        # ... also for assigning a pointer, which is only accepted for the :handle property
+        # the document takes over a copy, so it still owns exactly one handle, and the old one is released
+        d2 = Mongoc.BSON("a" => Int32(1))
+        old_handle = Mongoc.handle(d2)
+        new_handle = Mongoc.bson_copy(old_handle)
+        d2.handle = new_handle
+        @test Mongoc.handle(d2) == new_handle
+        @test d2["a"] == 1
+        Mongoc.bson_destroy(old_handle)
+
+        # property names are the document's keys, e.g. for tab completion
+        @test propertynames(Mongoc.BSON("x" => 1, "y" => 2)) == [:x, :y]
+
+        # the internal iterator form without a dict type uses the default type
+        iter_ref = Mongoc.bson_iter_init(Mongoc.BSON("n" => Mongoc.BSON("k" => 1)))
+        @test Mongoc.as_dict(iter_ref) isa Mongoc.DEFAULT_DICT_TYPE{String, Any}
+
+        # keys of the Pair constructor: Strings are kept, other AbstractStrings and Symbols are converted
+        d = Mongoc.BSON("a" => 1, SubString("xbc", 2) => 2, :c => 3)
+        @test collect(keys(d)) == ["a", "bc", "c"]
+        @test d["bc"] == 2 && d[:c] == 3
+
+        # Boolean masks select by value
+        d = Mongoc.BSON("a" => Int32(1), "b" => Int32(2))
+        @test d[[false, true]] == [2]
+        @test d[[2, 1]] == [2, 1]
+        @test_throws DimensionMismatch d[[true]]
     end
 
     @testset "BSON write" begin
@@ -345,7 +448,7 @@ using Distributed
         @testset "exclude one key" begin
             src = Mongoc.BSON("hey" => "you", "out" => 1)
             dst = Mongoc.BSON()
-            Mongoc.bson_copy_to_excluding_noinit(src.handle, dst.handle, "out")
+            Mongoc.bson_copy_to_excluding_noinit(handle(src), handle(dst), "out")
             @test !haskey(dst, "out")
             @test dst["hey"] == "you"
         end
@@ -353,7 +456,7 @@ using Distributed
         @testset "no exclude keys" begin
             src = Mongoc.BSON("hey" => "you", "out" => 1)
             dst = Mongoc.BSON()
-            Mongoc.bson_copy_to_noinit(src.handle, dst.handle)
+            Mongoc.bson_copy_to_noinit(handle(src), handle(dst))
             @test Mongoc.as_dict(src) == Mongoc.as_dict(dst)
         end
     end
@@ -591,4 +694,29 @@ using Distributed
             @test bson["a"] == 1
         end
     end
+end
+
+@testset "Nested dicttype" begin
+    nested = Mongoc.BSON("n" => Mongoc.BSON("m" => Mongoc.BSON("k" => 1)),
+                         "arr" => [Mongoc.BSON("x" => Mongoc.BSON("y" => 2))])
+
+    for D in (Dict, OrderedDict)
+        d = Mongoc.as_dict(nested; dicttype = D)
+        @test d isa D{String, Any}
+        @test d["n"] isa D{String, Any}
+        @test d["n"]["m"] isa D{String, Any}
+        @test d["arr"][1] isa D{String, Any}
+        @test d["arr"][1]["x"] isa D{String, Any}
+    end
+
+    d = Mongoc.as_dict(nested; dicttype = OrderedDict{String,Any})
+    @test d isa OrderedDict{String,Any}
+    @test d["n"]["m"] isa OrderedDict{String,Any}
+
+    v = nested["n", OrderedDict{String,Any}]
+    @test v isa OrderedDict{String,Any}
+    @test v["m"] isa OrderedDict{String,Any}
+    @test nested[:n, OrderedDict{String,Any}]["m"] isa OrderedDict{String,Any}
+    @test nested["arr", OrderedDict{String,Any}][1]["x"] isa OrderedDict{String,Any}
+    @test nested[1:2, OrderedDict{String,Any}][1]["m"] isa OrderedDict{String,Any}
 end
