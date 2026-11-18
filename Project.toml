@@ -16,7 +16,7 @@ Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 DecFP = "1"
 Libdl = "1"
 MongoC_jll = "1"
-julia = "1.6"
+julia = "1.10"
 
 [extras]
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
