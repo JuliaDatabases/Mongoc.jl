@@ -193,22 +193,20 @@ const DB_NAME = "mongoc"
             @test Mongoc.batch_size(cursor) == 10
         end
 
-        @static if !Sys.iswindows() # skipping binary tests for windows
-            @testset "Binary data" begin
-                coll = client[DB_NAME]["new_collection"]
-                bsonDoc = Mongoc.BSON()
-                testdata = rand(UInt8, 100)
-                bsonDoc["someId"] = "1234"
-                bsonDoc["bindata"] = testdata
-                result = push!(coll, bsonDoc)
-                @test result.reply["insertedCount"] == 1
+        @testset "Binary data" begin
+            coll = client[DB_NAME]["new_collection"]
+            bsonDoc = Mongoc.BSON()
+            testdata = rand(UInt8, 100)
+            bsonDoc["someId"] = "1234"
+            bsonDoc["bindata"] = testdata
+            result = push!(coll, bsonDoc)
+            @test result.reply["insertedCount"] == 1
 
-                # read data out and confirm
-                selector = Mongoc.BSON("""{ "someId": "1234" }""")
-                results = Mongoc.find_one(coll,  selector)
+            # read data out and confirm
+            selector = Mongoc.BSON("""{ "someId": "1234" }""")
+            results = Mongoc.find_one(coll,  selector)
 
-                @test results["bindata"] == testdata
-            end
+            @test results["bindata"] == testdata
         end
 
         @testset "find_collections" begin
