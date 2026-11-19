@@ -341,6 +341,18 @@ using Distributed
         end
     end
 
+    @testset "haskey agrees with getindex for keys with dots" begin
+        doc = Mongoc.BSON("""{ "a" : { "b" : 1 }, "c.d" : 2 }""")
+        for key in ["a", "a.b", "c", "c.d"]
+            @test haskey(doc, key) == (get(doc, key, nothing) !== nothing)
+        end
+        @test haskey(doc, "c.d")
+        @test !haskey(doc, "a.b")
+        # has_field keeps libbson's dotted-path lookup
+        @test Mongoc.has_field(doc, "a.b")
+        @test !Mongoc.has_field(doc, "c.d")
+    end
+
     @testset "BSON copy" begin
         @testset "exclude one key" begin
             src = Mongoc.BSON("hey" => "you", "out" => 1)

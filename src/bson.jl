@@ -446,7 +446,8 @@ Base.length(document::BSON) = bson_count_keys(document.handle)
 #
 
 has_field(bson::BSON, key::AbstractString) = bson_has_field(bson.handle, key)
-Base.haskey(bson::BSON, key::AbstractString) = has_field(bson, key)
+# An exact key match, like getindex and get. has_field follows dotted paths into embedded documents.
+Base.haskey(bson::BSON, key::AbstractString) = bson_iter_init_find(Ref{BSONIter}(), bson.handle, key)
 
 function bson_iter_init(document::BSON)
     iter_ref = Ref{BSONIter}()
