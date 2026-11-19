@@ -98,10 +98,22 @@ mutable struct URI
         if handle == C_NULL
             throw(err_ref[])
         end
+        default_tls_ca_file!(handle)
         new_uri = new(uri_string, handle)
         finalizer(destroy!, new_uri)
         return new_uri
     end
+end
+
+# libmongoc's OpenSSL looks for CA certificates under the JLL build prefix, which does not exist
+# on users' machines. On Windows, libmongoc reads the system certificate store instead.
+function default_tls_ca_file!(uri_handle::Ptr{Cvoid})
+    Sys.iswindows() && return
+    mongoc_uri_get_tls(uri_handle) || return
+    mongoc_uri_get_option_as_utf8(uri_handle, "tlsCAFile") == C_NULL || return
+    ca_roots = NetworkOptions.ca_roots_path()
+    isfile(ca_roots) && mongoc_uri_set_option_as_utf8(uri_handle, "tlsCAFile", ca_roots)
+    return
 end
 
 mutable struct ClientPool
