@@ -776,22 +776,19 @@ end
 # Write/Read BSON to/from IO
 #
 
+# Number of leading bytes in `buffer` covered by the length prefixes of consecutive BSON
+# documents. Stops at a zero length (trailing zero padding). A length too small for a
+# document covers the rest of `buffer`, and the result never exceeds `length(buffer)`,
+# so a reader sees and reports corrupt or truncated data instead of losing it.
 function _get_number_of_bytes_written_to_buffer(buffer::Vector{UInt8}) :: Int64
-    isempty(buffer) && return 0
-
-    # the first 4 bytes in data is a size int32
-    doc_size = reinterpret(Int32, buffer[1:4])[1]
-    local total_size::Int64 = 0
-    while doc_size != 0
+    total_size = 0
+    while total_size + 4 <= length(buffer)
+        doc_size = Int64(ltoh(reinterpret(Int32, buffer[total_size+1:total_size+4])[1]))
+        doc_size == 0 && break
+        doc_size < 5 && return length(buffer)
         total_size += doc_size
-
-        if length(buffer) < total_size + 4
-            break
-        end
-
-        doc_size = reinterpret(Int32, buffer[total_size+1:total_size+4])[1]
     end
-    return total_size
+    return min(total_size, length(buffer))
 end
 
 function _get_number_of_bytes_written_to_buffer(writer::BSONWriter)
@@ -1003,6 +1000,10 @@ function read_next_bson(reader::BSONReader) :: Union{Nothing, BSON}
         end
         return nothing
     end
+
+    # The reader checks only the length prefix and terminator; check the elements too.
+    err_ref = Ref{BSONError}()
+    bson_validate_with_error(bson_handle, BSON_VALIDATE_NONE, err_ref) || throw(err_ref[])
 
     bson_copy_handle = bson_copy(bson_handle) # creates a copy with its own lifetime
     return BSON(bson_copy_handle)

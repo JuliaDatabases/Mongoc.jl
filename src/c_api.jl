@@ -275,6 +275,15 @@ function bson_reader_new_from_data(data::Ptr{UInt8}, data_length::Integer)
     ccall((:bson_reader_new_from_data, libbson), Ptr{Cvoid}, (Ptr{UInt8}, Csize_t), data, data_length)
 end
 
+# bson_validate_flags_t value that checks structure only (not UTF-8 or key names)
+const BSON_VALIDATE_NONE = Cint(0)
+
+function bson_validate_with_error(bson_document::Ptr{Cvoid}, flags::Cint, bson_error_ref::Ref{BSONError})
+    ccall((:bson_validate_with_error, libbson), Bool,
+          (Ptr{Cvoid}, Cint, Ref{BSONError}),
+          bson_document, flags, bson_error_ref)
+end
+
 function bson_reader_read(bson_reader_handle::Ptr{Cvoid}, reached_eof_ref::Ref{Bool})
     ccall((:bson_reader_read, libbson), Ptr{Cvoid},
           (Ptr{Cvoid}, Ref{Bool}),
