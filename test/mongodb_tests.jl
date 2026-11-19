@@ -1188,6 +1188,24 @@ const DB_NAME = "mongoc"
                 close(io)
                 @test isempty(bucket)
             end
+
+            @testset "BSONValue file id stays valid after GC" begin
+                pattern = ntuple(_ -> 0xaa, 80)
+                for i in 1:5
+                    name = "gc_file_$i.txt"
+                    io = Mongoc.open_upload_stream(bucket, name)
+                    write(io, "content $i")
+                    close(io)
+                    file_id = Mongoc.get_as_bson_value(Mongoc.find_file_info(bucket, name), "_id")
+                    # Free garbage, then refill freed memory with a byte pattern.
+                    GC.gc(true)
+                    junk = [Ref(pattern) for _ in 1:20_000]
+                    stream = Mongoc.open_download_stream(bucket, file_id)
+                    @test read(stream, String) == "content $i"
+                    close(stream)
+                end
+                empty!(bucket)
+            end
         end
     end
 end
