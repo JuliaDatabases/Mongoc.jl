@@ -121,8 +121,18 @@ function bson_append_null(bson_document::Ptr{Cvoid}, key::AbstractString, key_le
           bson_document, key, key_length)
 end
 
+function bson_append_iter(bson_document::Ptr{Cvoid}, key::AbstractString, key_length::Int, iter_ref::Ref{BSONIter})
+    ccall((:bson_append_iter, libbson), Bool,
+          (Ptr{Cvoid}, Cstring, Cint, Ref{BSONIter}),
+          bson_document, key, key_length, iter_ref)
+end
+
 function bson_new()
     ccall((:bson_new, libbson), Ptr{Cvoid}, ())
+end
+
+function bson_new_from_data(data::Ptr{UInt8}, len::Integer)
+    ccall((:bson_new_from_data, libbson), Ptr{Cvoid}, (Ptr{UInt8}, Csize_t), data, len)
 end
 
 function bson_new_from_json(data::String, len::Int=-1)
@@ -232,6 +242,12 @@ function bson_iter_timestamp(iter_ref::Ref{BSONIter}) :: BSONTimestamp
     )
 
     return BSONTimestamp(timestamp[], increment[])
+end
+
+function bson_iter_document(iter_ref::Ref{BSONIter}, length_ref::Ref{UInt32}, data_ref::Ref{Ptr{UInt8}})
+    ccall((:bson_iter_document, libbson), Cvoid,
+          (Ref{BSONIter}, Ref{UInt32}, Ref{Ptr{UInt8}}),
+          iter_ref, length_ref, data_ref)
 end
 
 function bson_iter_recurse(iter_ref::Ref{BSONIter}, child_iter_ref::Ref{BSONIter})
