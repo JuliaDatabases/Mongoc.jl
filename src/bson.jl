@@ -561,7 +561,8 @@ function get_value(iter_ref::Ref{BSONIter})
     bson_type = bson_iter_type(iter_ref)
 
     if bson_type == BSON_TYPE_UTF8
-        return unsafe_string(bson_iter_utf8(iter_ref))
+        length_ref = Ref{UInt32}()
+        return unsafe_string(bson_iter_utf8(iter_ref, length_ref), length_ref[])
     elseif bson_type == BSON_TYPE_INT64
         return bson_iter_int64(iter_ref)
     elseif bson_type == BSON_TYPE_INT32
@@ -609,7 +610,8 @@ function get_value(iter_ref::Ref{BSONIter})
         return result_data
 
     elseif bson_type == BSON_TYPE_CODE
-        return BSONCode(unsafe_string(bson_iter_code(iter_ref)))
+        length_ref = Ref{UInt32}()
+        return BSONCode(unsafe_string(bson_iter_code(iter_ref, length_ref), length_ref[]))
     elseif bson_type == BSON_TYPE_NULL
         return nothing
     else
@@ -677,7 +679,8 @@ function Base.setindex!(document::BSON, value::Int32, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::AbstractString, key::AbstractString)
-    ok = bson_append_utf8(document.handle, key, -1, value, -1)
+    value = String(value)
+    ok = bson_append_utf8(document.handle, key, -1, value, sizeof(value))
     if !ok
         error("Couldn't append String to BSON document.")
     end
