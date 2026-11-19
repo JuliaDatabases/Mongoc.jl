@@ -441,8 +441,8 @@ using Distributed
 
         @testset "read BSON from corrupt data" begin
             # BSON corpus decodeErrors: "bad string length: -1" and "Truncated timestamp field"
-            @test_throws ErrorException Mongoc.read_bson(hex2bytes("0C000000026100FFFFFFFF00"))
-            @test_throws ErrorException Mongoc.read_bson(hex2bytes("0f0000001161002A00000015CD5B00"))
+            @test_throws Mongoc.BSONError Mongoc.read_bson(hex2bytes("0C000000026100FFFFFFFF00"))
+            @test_throws Mongoc.BSONError Mongoc.read_bson(hex2bytes("0f0000001161002A00000015CD5B00"))
             # "Stated length less than byte count, with garbage after envelope"
             garbage = hex2bytes("1200000002666F6F00040000006261720000DEADBEEF")
             docs = @test_logs (:warn, r"didn't reach stream's eof") Mongoc.read_bson(garbage)

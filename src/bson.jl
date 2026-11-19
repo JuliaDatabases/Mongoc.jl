@@ -1002,10 +1002,8 @@ function read_next_bson(reader::BSONReader) :: Union{Nothing, BSON}
     end
 
     # The reader checks only the length prefix and terminator; check the elements too.
-    offset_ref = Ref{Csize_t}(0)
-    if !bson_validate(bson_handle, BSON_VALIDATE_NONE, offset_ref)
-        error("Invalid BSON document: corrupt data at byte $(offset_ref[]).")
-    end
+    err_ref = Ref{BSONError}()
+    bson_validate_with_error(bson_handle, BSON_VALIDATE_NONE, err_ref) || throw(err_ref[])
 
     bson_copy_handle = bson_copy(bson_handle) # creates a copy with its own lifetime
     return BSON(bson_copy_handle)
