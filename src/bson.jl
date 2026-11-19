@@ -650,6 +650,19 @@ function Base.get(document::BSON, key::AbstractString, default::Any)
     return bson_iter_init_find(iter_ref, document.handle, key) ? get_value(iter_ref) : default
 end
 
+# Returns the embedded document `document[key]` as a `BSON` copy of its bytes, or `nothing`
+# when the value is null. Unlike `getindex`, it keeps field order, duplicate keys, and every type.
+function get_document(document::BSON, key::AbstractString) :: Union{Nothing, BSON}
+    iter_ref = Ref{BSONIter}()
+    bson_iter_init_find(iter_ref, document.handle, key) || throw(KeyError(key))
+    bson_iter_type(iter_ref) == BSON_TYPE_NULL && return nothing
+    length_ref = Ref{UInt32}()
+    data_ref = Ref{Ptr{UInt8}}()
+    bson_iter_document(iter_ref, length_ref, data_ref)
+    data_ref[] == C_NULL && error("Value for key $key is not a document.")
+    return BSON(bson_new_from_data(data_ref[], length_ref[]))
+end
+
 """
     get_as_bson_value(doc, key) :: BSONValue
 
@@ -671,6 +684,17 @@ get_as_bson_value(iter_ref::Ref{BSONIter}) = GC.@preserve iter_ref BSONValue(bso
 #
 # Write values to BSON
 #
+
+# Appends `src[src_key]` to `dst` as `dst_key`, copying the element's bytes without decoding it.
+# Does nothing when `src` has no `src_key`.
+function copy_field!(dst::BSON, dst_key::AbstractString, src::BSON, src_key::AbstractString)
+    iter_ref = Ref{BSONIter}()
+    bson_iter_init_find(iter_ref, src.handle, src_key) || return nothing
+    if !bson_append_iter(dst.handle, dst_key, -1, iter_ref)
+        error("Couldn't append $dst_key to BSON document.")
+    end
+    nothing
+end
 
 function Base.setindex!(document::BSON, value::BSONObjectId, key::AbstractString)
     ok = bson_append_oid(document.handle, key, -1, value)
