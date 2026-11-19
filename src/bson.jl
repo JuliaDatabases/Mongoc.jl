@@ -228,12 +228,34 @@ function destroy!(bson::BSON)
 end
 
 """
-Wrapper for bson_value_t.
+A copy of one BSON value, wrapping a C `bson_value_t` that this object owns.
+It stays valid after the document it was read from is modified or freed.
 
 See [`Mongoc.get_as_bson_value`](@ref).
 """
 mutable struct BSONValue
     handle::Ptr{Cvoid}
+
+    function BSONValue(value::Ptr{Cvoid})
+        handle = Libc.malloc(BSON_VALUE_SIZE)
+        handle == C_NULL && throw(OutOfMemoryError())
+        bson_value_copy(value, handle)
+        result = new(handle)
+        finalizer(destroy!, result)
+        return result
+    end
+end
+
+# sizeof(bson_value_t): an 8-byte type tag and padding, then a 24-byte union.
+const BSON_VALUE_SIZE = 32
+
+function destroy!(value::BSONValue)
+    if value.handle != C_NULL
+        bson_value_destroy(value.handle)
+        Libc.free(value.handle)
+        value.handle = C_NULL
+    end
+    nothing
 end
 
 function Base.deepcopy_internal(x::BSON, stackdict::IdDict)
@@ -639,14 +661,12 @@ See also [`Mongoc.BSONValue`](@ref).
 function get_as_bson_value(document::BSON, key::AbstractString) :: BSONValue
     iter_ref = Ref{BSONIter}()
     bson_iter_init_find(iter_ref, document.handle, key) || throw(KeyError(key))
-    return get_as_bson_value(iter_ref)
+    # strings and binary data in the value point into `document` until they are copied
+    return GC.@preserve document get_as_bson_value(iter_ref)
 end
 
-function get_as_bson_value(iter_ref::Ref{BSONIter})
-    # this BSONValue may be valid only during
-    # the lifetime of the BSON document
-    return BSONValue(bson_iter_value(iter_ref))
-end
+# bson_iter_value points into the iterator, so the iterator must stay alive until the copy.
+get_as_bson_value(iter_ref::Ref{BSONIter}) = GC.@preserve iter_ref BSONValue(bson_iter_value(iter_ref))
 
 #
 # Write values to BSON

@@ -257,6 +257,14 @@ function bson_iter_value(iter_ref::Ref{BSONIter})
     ccall((:bson_iter_value, libbson), Ptr{Cvoid}, (Ref{BSONIter},), iter_ref)
 end
 
+function bson_value_copy(src::Ptr{Cvoid}, dst::Ptr{Cvoid})
+    ccall((:bson_value_copy, libbson), Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}), src, dst)
+end
+
+function bson_value_destroy(value::Ptr{Cvoid})
+    ccall((:bson_value_destroy, libbson), Cvoid, (Ptr{Cvoid},), value)
+end
+
 function bson_free(mem::Ptr{Cvoid})
     ccall((:bson_free, libbson), Cvoid, (Ptr{Cvoid},), mem)
 end
