@@ -11,10 +11,10 @@ using Dates, DecFP, Serialization
 # utility functions for date conversion
 #
 
-# offsets an additional year from UNIXEPOCH in milliseconds.
-const ISODATE_OFFSET = Dates.UNIXEPOCH + 24 * 60 * 60 * 1000 * 365
-isodate2datetime(millis::Int64) = Dates.epochms2datetime(millis + ISODATE_OFFSET)
-datetime2isodate(dt::DateTime) = Dates.datetime2epochms(dt) - ISODATE_OFFSET
+# A BSON date is Int64 milliseconds since 1970; a DateTime is Int64 milliseconds since
+# 0000-12-31. Shifting by UNIXEPOCH throws OverflowError for dates only one side can hold.
+isodate2datetime(millis::Int64) = DateTime(Dates.UTM(Base.checked_add(millis, Dates.UNIXEPOCH)))
+datetime2isodate(dt::DateTime) = Base.checked_sub(Dates.value(dt), Dates.UNIXEPOCH)
 
 include("bson.jl")
 include("types.jl")
