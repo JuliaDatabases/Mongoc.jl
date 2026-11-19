@@ -348,6 +348,9 @@ using Distributed
         end
         @test haskey(doc, "c.d")
         @test !haskey(doc, "a.b")
+        # has_field keeps libbson's dotted-path lookup
+        @test Mongoc.has_field(doc, "a.b")
+        @test !Mongoc.has_field(doc, "c.d")
     end
 
     @testset "BSON copy" begin
