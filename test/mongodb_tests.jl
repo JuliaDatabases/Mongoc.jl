@@ -967,6 +967,9 @@ const DB_NAME = "mongoc"
         end
 
         Mongoc.add_user(database, user_name, pass, roles)
+        # A username without a password must fail authentication, not crash (#65).
+        no_password = Mongoc.Client("mongodb://$(user_name)@localhost:27017/?authSource=$(DB_NAME)")
+        @test_throws Mongoc.BSONError Mongoc.ping(no_password)
         Mongoc.remove_user(database, user_name)
         @test !Mongoc.has_user(database, user_name)
     end
