@@ -1018,6 +1018,20 @@ const DB_NAME = "mongoc"
             @test session.options.handle == C_NULL
             @test Mongoc.destroy!(session) === nothing
         end
+
+        @testset "Session calls leave the caller's options unchanged" begin
+            options = Mongoc.BSON("bypassDocumentValidation" => false)
+            json = Mongoc.as_json(options)
+            for i in 1:2
+                session = Mongoc.Session(client)
+                collection = session[DB_NAME]["session_options"]
+                Mongoc.insert_one(collection, Mongoc.BSON("i" => i); options)
+                @test Mongoc.as_json(options) == json
+                Mongoc.destroy!(session)
+            end
+            @test Mongoc.count_documents(client[DB_NAME]["session_options"]) == 2
+            Mongoc.drop(client[DB_NAME]["session_options"])
+        end
     end
 
     @testset "Drop Database" begin
