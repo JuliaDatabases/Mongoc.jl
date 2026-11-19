@@ -15,6 +15,7 @@ import Mongoc
 
 using Test
 using Dates
+import NetworkOptions
 
 const DB_NAME = "mongoc"
 
@@ -69,6 +70,21 @@ const DB_NAME = "mongoc"
             @test doc["regex"] == Mongoc.BSONUnsupported(0x0b)
         end
         =#
+    end
+
+    @testset "TLS CA file defaults to Julia's CA roots (#69)" begin
+        function tls_ca_file(uri_string)
+            uri = Mongoc.URI(uri_string)
+            GC.@preserve uri begin
+                ptr = Mongoc.mongoc_uri_get_option_as_utf8(uri.handle, "tlsCAFile")
+                return ptr == C_NULL ? nothing : unsafe_string(ptr)
+            end
+        end
+        default_ca = Sys.iswindows() ? nothing : NetworkOptions.ca_roots_path()
+        @test tls_ca_file("mongodb://localhost:27017/?tls=true") == default_ca
+        @test tls_ca_file("mongodb://localhost:27017/?ssl=true") == default_ca
+        @test tls_ca_file("mongodb://localhost:27017/?tls=true&tlsCAFile=/custom/ca.pem") == "/custom/ca.pem"
+        @test tls_ca_file("mongodb://localhost:27017") === nothing
     end
 
     @testset "Connection" begin

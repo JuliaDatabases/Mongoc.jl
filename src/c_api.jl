@@ -383,6 +383,22 @@ function mongoc_uri_destroy(uri_handle::Ptr{Cvoid})
     ccall((:mongoc_uri_destroy, libmongoc), Cvoid, (Ptr{Cvoid},), uri_handle)
 end
 
+function mongoc_uri_get_tls(uri_handle::Ptr{Cvoid})
+    ccall((:mongoc_uri_get_tls, libmongoc), Bool, (Ptr{Cvoid},), uri_handle)
+end
+
+function mongoc_uri_get_option_as_utf8(uri_handle::Ptr{Cvoid}, option::String)
+    ccall((:mongoc_uri_get_option_as_utf8, libmongoc), Ptr{UInt8},
+          (Ptr{Cvoid}, Cstring, Ptr{UInt8}),
+          uri_handle, option, C_NULL)
+end
+
+function mongoc_uri_set_option_as_utf8(uri_handle::Ptr{Cvoid}, option::String, value::String)
+    ccall((:mongoc_uri_set_option_as_utf8, libmongoc), Bool,
+          (Ptr{Cvoid}, Cstring, Cstring),
+          uri_handle, option, value)
+end
+
 function mongoc_client_new_from_uri(uri_handle::Ptr{Cvoid})
     ccall((:mongoc_client_new_from_uri, libmongoc), Ptr{Cvoid}, (Ptr{Cvoid},), uri_handle)
 end
