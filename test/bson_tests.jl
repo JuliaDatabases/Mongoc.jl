@@ -268,6 +268,16 @@ using Distributed
         end
     end
 
+    @testset "BSON dates outside the DateTime range" begin
+        # The latest BSON date a DateTime can hold, and Java's Long.MAX_VALUE sentinel date.
+        last_ms = typemax(Int64) - Dates.UNIXEPOCH
+        bson = Mongoc.BSON("""{ "last" : { "\$date" : { "\$numberLong" : "$last_ms" } },
+            "max" : { "\$date" : { "\$numberLong" : "$(typemax(Int64))" } } }""")
+        @test Dates.value(bson["last"]) == typemax(Int64)
+        @test_throws OverflowError bson["max"]
+        @test_throws OverflowError Mongoc.BSON()["min"] = DateTime(Dates.UTM(typemin(Int64)))
+    end
+
     @testset "BSON to Dict conversion" begin
         dict = Dict("a" => 1, "b" => false, "c" => "string", "d" => nothing)
         doc = Mongoc.BSON(dict)
