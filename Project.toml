@@ -16,7 +16,7 @@ Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 [compat]
 DecFP = "1"
 Libdl = "1"
-MongoC_jll = "1"
+MongoC_jll = "1.28.1"
 julia = "1.10"
 
 [extras]
