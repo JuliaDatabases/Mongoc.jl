@@ -228,12 +228,34 @@ function destroy!(bson::BSON)
 end
 
 """
-Wrapper for bson_value_t.
+A copy of one BSON value, wrapping a C `bson_value_t` that this object owns.
+It stays valid after the document it was read from is modified or freed.
 
 See [`Mongoc.get_as_bson_value`](@ref).
 """
 mutable struct BSONValue
     handle::Ptr{Cvoid}
+
+    function BSONValue(value::Ptr{Cvoid})
+        handle = Libc.malloc(BSON_VALUE_SIZE)
+        handle == C_NULL && throw(OutOfMemoryError())
+        bson_value_copy(value, handle)
+        result = new(handle)
+        finalizer(destroy!, result)
+        return result
+    end
+end
+
+# sizeof(bson_value_t): an 8-byte type tag and padding, then a 24-byte union.
+const BSON_VALUE_SIZE = 32
+
+function destroy!(value::BSONValue)
+    if value.handle != C_NULL
+        bson_value_destroy(value.handle)
+        Libc.free(value.handle)
+        value.handle = C_NULL
+    end
+    nothing
 end
 
 function Base.deepcopy_internal(x::BSON, stackdict::IdDict)
@@ -562,7 +584,8 @@ function get_value(iter_ref::Ref{BSONIter})
     bson_type = bson_iter_type(iter_ref)
 
     if bson_type == BSON_TYPE_UTF8
-        return unsafe_string(bson_iter_utf8(iter_ref))
+        length_ref = Ref{UInt32}()
+        return unsafe_string(bson_iter_utf8(iter_ref, length_ref), length_ref[])
     elseif bson_type == BSON_TYPE_INT64
         return bson_iter_int64(iter_ref)
     elseif bson_type == BSON_TYPE_INT32
@@ -610,7 +633,8 @@ function get_value(iter_ref::Ref{BSONIter})
         return result_data
 
     elseif bson_type == BSON_TYPE_CODE
-        return BSONCode(unsafe_string(bson_iter_code(iter_ref)))
+        length_ref = Ref{UInt32}()
+        return BSONCode(unsafe_string(bson_iter_code(iter_ref, length_ref), length_ref[]))
     elseif bson_type == BSON_TYPE_NULL
         return nothing
     else
@@ -629,6 +653,19 @@ function Base.get(document::BSON, key::AbstractString, default::Any)
     return bson_iter_init_find(iter_ref, document.handle, key) ? get_value(iter_ref) : default
 end
 
+# Returns the embedded document `document[key]` as a `BSON` copy of its bytes, or `nothing`
+# when the value is null. Unlike `getindex`, it keeps field order, duplicate keys, and every type.
+function get_document(document::BSON, key::AbstractString) :: Union{Nothing, BSON}
+    iter_ref = Ref{BSONIter}()
+    bson_iter_init_find(iter_ref, document.handle, key) || throw(KeyError(key))
+    bson_iter_type(iter_ref) == BSON_TYPE_NULL && return nothing
+    length_ref = Ref{UInt32}()
+    data_ref = Ref{Ptr{UInt8}}()
+    bson_iter_document(iter_ref, length_ref, data_ref)
+    data_ref[] == C_NULL && error("Value for key $key is not a document.")
+    return BSON(bson_new_from_data(data_ref[], length_ref[]))
+end
+
 """
     get_as_bson_value(doc, key) :: BSONValue
 
@@ -640,18 +677,27 @@ See also [`Mongoc.BSONValue`](@ref).
 function get_as_bson_value(document::BSON, key::AbstractString) :: BSONValue
     iter_ref = Ref{BSONIter}()
     bson_iter_init_find(iter_ref, document.handle, key) || throw(KeyError(key))
-    return get_as_bson_value(iter_ref)
+    # strings and binary data in the value point into `document` until they are copied
+    return GC.@preserve document get_as_bson_value(iter_ref)
 end
 
-function get_as_bson_value(iter_ref::Ref{BSONIter})
-    # this BSONValue may be valid only during
-    # the lifetime of the BSON document
-    return BSONValue(bson_iter_value(iter_ref))
-end
+# bson_iter_value points into the iterator, so the iterator must stay alive until the copy.
+get_as_bson_value(iter_ref::Ref{BSONIter}) = GC.@preserve iter_ref BSONValue(bson_iter_value(iter_ref))
 
 #
 # Write values to BSON
 #
+
+# Appends `src[src_key]` to `dst` as `dst_key`, copying the element's bytes without decoding it.
+# Does nothing when `src` has no `src_key`.
+function copy_field!(dst::BSON, dst_key::AbstractString, src::BSON, src_key::AbstractString)
+    iter_ref = Ref{BSONIter}()
+    bson_iter_init_find(iter_ref, src.handle, src_key) || return nothing
+    if !bson_append_iter(dst.handle, dst_key, -1, iter_ref)
+        error("Couldn't append $dst_key to BSON document.")
+    end
+    nothing
+end
 
 function Base.setindex!(document::BSON, value::BSONObjectId, key::AbstractString)
     ok = bson_append_oid(document.handle, key, -1, value)
@@ -678,7 +724,8 @@ function Base.setindex!(document::BSON, value::Int32, key::AbstractString)
 end
 
 function Base.setindex!(document::BSON, value::AbstractString, key::AbstractString)
-    ok = bson_append_utf8(document.handle, key, -1, value, -1)
+    value = String(value)
+    ok = bson_append_utf8(document.handle, key, -1, value, sizeof(value))
     if !ok
         error("Couldn't append String to BSON document.")
     end
