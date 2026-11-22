@@ -59,9 +59,9 @@ function bson_append_int64(bson_document::Ptr{Cvoid}, key::AbstractString, key_l
 end
 
 function bson_append_utf8(bson_document::Ptr{Cvoid},
-                          key::AbstractString, key_length::Int, value::AbstractString, len::Int)
+                          key::AbstractString, key_length::Int, value::String, len::Int)
     ccall((:bson_append_utf8, libbson), Bool,
-          (Ptr{Cvoid}, Cstring, Cint, Cstring, Cint),
+          (Ptr{Cvoid}, Cstring, Cint, Ptr{UInt8}, Cint),
           bson_document, key, key_length, value, len)
 end
 
@@ -121,8 +121,18 @@ function bson_append_null(bson_document::Ptr{Cvoid}, key::AbstractString, key_le
           bson_document, key, key_length)
 end
 
+function bson_append_iter(bson_document::Ptr{Cvoid}, key::AbstractString, key_length::Int, iter_ref::Ref{BSONIter})
+    ccall((:bson_append_iter, libbson), Bool,
+          (Ptr{Cvoid}, Cstring, Cint, Ref{BSONIter}),
+          bson_document, key, key_length, iter_ref)
+end
+
 function bson_new()
     ccall((:bson_new, libbson), Ptr{Cvoid}, ())
+end
+
+function bson_new_from_data(data::Ptr{UInt8}, len::Integer)
+    ccall((:bson_new_from_data, libbson), Ptr{Cvoid}, (Ptr{UInt8}, Csize_t), data, len)
 end
 
 function bson_new_from_json(data::String, len::Int=-1)
@@ -193,8 +203,8 @@ function bson_iter_int64(iter_ref::Ref{BSONIter})
     ccall((:bson_iter_int64, libbson), Int64, (Ref{BSONIter},), iter_ref)
 end
 
-function bson_iter_utf8(iter_ref::Ref{BSONIter})
-    ccall((:bson_iter_utf8, libbson), Cstring, (Ref{BSONIter}, Ptr{Cvoid}), iter_ref, C_NULL)
+function bson_iter_utf8(iter_ref::Ref{BSONIter}, length_ref::Ref{UInt32})
+    ccall((:bson_iter_utf8, libbson), Ptr{UInt8}, (Ref{BSONIter}, Ref{UInt32}), iter_ref, length_ref)
 end
 
 function bson_iter_bool(iter_ref::Ref{BSONIter})
@@ -234,12 +244,18 @@ function bson_iter_timestamp(iter_ref::Ref{BSONIter}) :: BSONTimestamp
     return BSONTimestamp(timestamp[], increment[])
 end
 
+function bson_iter_document(iter_ref::Ref{BSONIter}, length_ref::Ref{UInt32}, data_ref::Ref{Ptr{UInt8}})
+    ccall((:bson_iter_document, libbson), Cvoid,
+          (Ref{BSONIter}, Ref{UInt32}, Ref{Ptr{UInt8}}),
+          iter_ref, length_ref, data_ref)
+end
+
 function bson_iter_recurse(iter_ref::Ref{BSONIter}, child_iter_ref::Ref{BSONIter})
     ccall((:bson_iter_recurse, libbson), Bool, (Ref{BSONIter}, Ref{BSONIter}), iter_ref, child_iter_ref)
 end
 
-function bson_iter_code(iter_ref::Ref{BSONIter})
-    ccall((:bson_iter_code, libbson), Cstring, (Ref{BSONIter}, Ptr{UInt32}), iter_ref, C_NULL)
+function bson_iter_code(iter_ref::Ref{BSONIter}, length_ref::Ref{UInt32})
+    ccall((:bson_iter_code, libbson), Ptr{UInt8}, (Ref{BSONIter}, Ref{UInt32}), iter_ref, length_ref)
 end
 
 function bson_iter_binary(iter_ref::Ref{BSONIter}, length_ref::Ref{UInt32}, buffer_ref::Ref{Ptr{UInt8}})
@@ -255,6 +271,14 @@ end
 
 function bson_iter_value(iter_ref::Ref{BSONIter})
     ccall((:bson_iter_value, libbson), Ptr{Cvoid}, (Ref{BSONIter},), iter_ref)
+end
+
+function bson_value_copy(src::Ptr{Cvoid}, dst::Ptr{Cvoid})
+    ccall((:bson_value_copy, libbson), Cvoid, (Ptr{Cvoid}, Ptr{Cvoid}), src, dst)
+end
+
+function bson_value_destroy(value::Ptr{Cvoid})
+    ccall((:bson_value_destroy, libbson), Cvoid, (Ptr{Cvoid},), value)
 end
 
 function bson_free(mem::Ptr{Cvoid})
@@ -381,6 +405,22 @@ end
 
 function mongoc_uri_destroy(uri_handle::Ptr{Cvoid})
     ccall((:mongoc_uri_destroy, libmongoc), Cvoid, (Ptr{Cvoid},), uri_handle)
+end
+
+function mongoc_uri_get_tls(uri_handle::Ptr{Cvoid})
+    ccall((:mongoc_uri_get_tls, libmongoc), Bool, (Ptr{Cvoid},), uri_handle)
+end
+
+function mongoc_uri_get_option_as_utf8(uri_handle::Ptr{Cvoid}, option::String)
+    ccall((:mongoc_uri_get_option_as_utf8, libmongoc), Ptr{UInt8},
+          (Ptr{Cvoid}, Cstring, Ptr{UInt8}),
+          uri_handle, option, C_NULL)
+end
+
+function mongoc_uri_set_option_as_utf8(uri_handle::Ptr{Cvoid}, option::String, value::String)
+    ccall((:mongoc_uri_set_option_as_utf8, libmongoc), Bool,
+          (Ptr{Cvoid}, Cstring, Cstring),
+          uri_handle, option, value)
 end
 
 function mongoc_client_new_from_uri(uri_handle::Ptr{Cvoid})

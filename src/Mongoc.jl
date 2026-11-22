@@ -2,6 +2,7 @@
 module Mongoc
 using MongoC_jll
 import Libdl
+import NetworkOptions
 
 import Base.UUID
 using Dates, DecFP, Serialization
