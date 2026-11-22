@@ -921,6 +921,39 @@ const DB_NAME = "mongoc"
         Mongoc.drop(collection)
     end
 
+    @testset "find one and modify passes options and documents through unchanged" begin
+        collection = client[DB_NAME]["find_one_and_modify_raw"]
+        stored = Mongoc.BSON("""{ "_id" : 1, "z" : { "y" : 1, "b" : [ { "\$minKey" : 1 } ] },
+            "ts" : { "\$timestamp" : { "t" : 1, "i" : 2 } }, "re" : { "\$regex" : "^a", "\$options" : "i" } }""")
+        Mongoc.insert_one(collection, stored)
+        filter = Mongoc.BSON("_id" => 1)
+        current() = Mongoc.as_json(Mongoc.find_one(collection, filter))
+
+        before = current()
+        @test Mongoc.as_json(Mongoc.find_one_and_update(collection, filter,
+            Mongoc.BSON("""{ "\$set" : { "n" : 1 } }"""))) == before
+        before = current()
+        @test Mongoc.as_json(Mongoc.find_one_and_replace(collection, filter, stored)) == before
+        before = current()
+        @test Mongoc.as_json(Mongoc.find_one_and_delete(collection, filter)) == before
+
+        # The sort keys keep their order: { a : -1, b : 1 } and { b : 1, a : -1 } pick different documents.
+        ops = [
+            options -> Mongoc.find_one_and_update(collection, Mongoc.BSON(),
+                Mongoc.BSON("""{ "\$set" : { "n" : 1 } }"""); options),
+            options -> Mongoc.find_one_and_replace(collection, Mongoc.BSON(), Mongoc.BSON("n" => 1); options),
+            options -> Mongoc.find_one_and_delete(collection, Mongoc.BSON(); options),
+        ]
+        for (sort, expected) in ["""{ "a" : -1, "b" : 1 }""" => "highA", """{ "b" : 1, "a" : -1 }""" => "lowB"], op in ops
+            Mongoc.delete_many(collection, Mongoc.BSON())
+            Mongoc.insert_one(collection, Mongoc.BSON("""{ "_id" : "lowB", "a" : 1, "b" : 1 }"""))
+            Mongoc.insert_one(collection, Mongoc.BSON("""{ "_id" : "highA", "a" : 2, "b" : 2 }"""))
+            @test op(Mongoc.BSON("sort" => Mongoc.BSON(sort)))["_id"] == expected
+        end
+
+        Mongoc.drop(collection)
+    end
+
     @testset "command" begin
         database = client[DB_NAME]
         collection_name = "index_collection"
@@ -1017,6 +1050,20 @@ const DB_NAME = "mongoc"
             @test session.handle == C_NULL
             @test session.options.handle == C_NULL
             @test Mongoc.destroy!(session) === nothing
+        end
+
+        @testset "Session calls leave the caller's options unchanged" begin
+            options = Mongoc.BSON("bypassDocumentValidation" => false)
+            json = Mongoc.as_json(options)
+            for i in 1:2
+                session = Mongoc.Session(client)
+                collection = session[DB_NAME]["session_options"]
+                Mongoc.insert_one(collection, Mongoc.BSON("i" => i); options)
+                @test Mongoc.as_json(options) == json
+                Mongoc.destroy!(session)
+            end
+            @test Mongoc.count_documents(client[DB_NAME]["session_options"]) == 2
+            Mongoc.drop(client[DB_NAME]["session_options"])
         end
     end
 
@@ -1187,6 +1234,24 @@ const DB_NAME = "mongoc"
                 Mongoc.abort_upload(io)
                 close(io)
                 @test isempty(bucket)
+            end
+
+            @testset "BSONValue file id stays valid after GC" begin
+                pattern = ntuple(_ -> 0xaa, 80)
+                for i in 1:5
+                    name = "gc_file_$i.txt"
+                    io = Mongoc.open_upload_stream(bucket, name)
+                    write(io, "content $i")
+                    close(io)
+                    file_id = Mongoc.get_as_bson_value(Mongoc.find_file_info(bucket, name), "_id")
+                    # Free garbage, then refill freed memory with a byte pattern.
+                    GC.gc(true)
+                    junk = [Ref(pattern) for _ in 1:20_000]
+                    stream = Mongoc.open_download_stream(bucket, file_id)
+                    @test read(stream, String) == "content $i"
+                    close(stream)
+                end
+                empty!(bucket)
             end
         end
     end
