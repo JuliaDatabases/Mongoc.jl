@@ -14,21 +14,8 @@ function upload(bucket::Bucket, filename::AbstractString, source::AbstractMongoS
         chunk_size::Union{Nothing, Integer}=nothing,
         metadata::Union{Nothing, BSON}=nothing)
 
-    # Julia does not support C unions.
-    # libmongoc represents bson_value_t as a C union.
-    # To make things work, here we construct a BSON document
-    # and set the id. Later, we retrieve a bson_value_t
-    # using get_as_bson_value, which uses bson_iter_value.
-    # new_bson_with_id returns a tuple with the BSON doc
-    # along with the id to ensure that the lifetime of the BSON
-    # doc exceeds the lifetime of the bson_value_t
-    # that we'll pass to mongoc_gridfs_bucket_upload_from_stream_with_id.
-
-    function new_bson_with_id(id)
-        doc = BSON("_id" => id)
-        return doc, get_as_bson_value(doc, "_id")
-    end
-    doc, file_id_as_bson_value = new_bson_with_id(file_id)
+    # libmongoc takes the id as a bson_value_t; build one from a document holding it.
+    file_id_as_bson_value = get_as_bson_value(BSON("_id" => file_id), "_id")
 
     function new_bson_upload_opts(chunk_size::Union{Nothing, Integer}, metadata::Union{Nothing, BSON}) :: Union{Nothing, BSON}
         if chunk_size == nothing && metadata == nothing
