@@ -596,14 +596,10 @@ function find_one_and_delete(collection::Collection, bson_filter::BSON;
 
     if !isnothing(options)
         for (opt_key, comm_key) in FIND_ONE_AND_DELETE_FIELDS
-            if haskey(options, opt_key)
-                command_bson[comm_key] = options[opt_key]
-            end
+            copy_field!(command_bson, comm_key, options, opt_key)
         end
 
-        if haskey(options, "sessionId")
-            options_bson["sessionId"] = options["sessionId"]
-        end
+        copy_field!(options_bson, "sessionId", options, "sessionId")
     end
 
     reply = write_command(
@@ -612,7 +608,7 @@ function find_one_and_delete(collection::Collection, bson_filter::BSON;
         options=options_bson,
     )
 
-    return reply["value"]
+    return get_document(reply, "value")
 end
 
 const FIND_ONE_AND_MODIFY_FIELDS = Dict(
@@ -640,14 +636,10 @@ function _find_one_and_modify(collection::Collection, bson_filter::BSON, bson_mo
 
     if !isnothing(options)
         for (opt_key, comm_key) in FIND_ONE_AND_MODIFY_FIELDS
-            if haskey(options, opt_key)
-                command_bson[comm_key] = options[opt_key]
-            end
+            copy_field!(command_bson, comm_key, options, opt_key)
         end
 
-        if haskey(options, "sessionId")
-            options_bson["sessionId"] = options["sessionId"]
-        end
+        copy_field!(options_bson, "sessionId", options, "sessionId")
     end
 
     reply = write_command(
@@ -656,7 +648,7 @@ function _find_one_and_modify(collection::Collection, bson_filter::BSON, bson_mo
         options=options_bson,
     )
 
-    return reply["value"]
+    return get_document(reply, "value")
 end
 
 """

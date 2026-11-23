@@ -15,10 +15,6 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.6'
-          - '1.7'
-          - '1.8'
-          - '1.9'
           - '1.10'
           - '1' # automatically expands to the latest stable 1.x release of Julia
           - 'nightly'
@@ -50,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['1.6', '1']
+        version: ['1.10', '1']
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
@@ -58,11 +54,12 @@ jobs:
           version: ${{ matrix.version }}
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
-      - name: Initialize the driver, test native streams, and exit normally
+      - name: Initialize the driver, test BSON and native streams, and exit normally
         run: |
           julia --startup-file=no --compiled-modules=no --code-coverage=user --project -e '
             using Mongoc
             @assert Sys.iswindows()
+            include("test/bson_tests.jl")
             include("test/stream_tests.jl")
             println("JULIA_VERSION=", VERSION)
             println("NATIVE_VERSION=", unsafe_string(ccall((:mongoc_get_version, Mongoc.libmongoc), Cstring, ())))'

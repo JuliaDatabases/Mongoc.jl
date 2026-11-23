@@ -11,6 +11,11 @@ Base.getindex(client::Client, database::String) = Database(client, database)
 
 Creates a `Client`, which represents a connection to a MongoDB database.
 
+When `uri` enables TLS and does not set `tlsCAFile`, the server certificate is verified against
+`NetworkOptions.ca_roots_path()`, the CA roots that Julia's other network clients use. Set
+`JULIA_SSL_CA_ROOTS_PATH` or `tlsCAFile` to use other roots. On Windows, libmongoc uses the
+system certificate store instead.
+
 See also [`Mongoc.ClientPool`](@ref).
 
 # Examples:

@@ -1,8 +1,7 @@
 
-# Append session to options.
-# Given that options may be nothing, always use the return value as the new value for options.
+# Returns a copy of options with the session appended; the caller's options are not modified.
 function _join(options::Union{Nothing, BSON}, session::Session) :: BSON
-    result = options == nothing ? Mongoc.BSON() : options
+    result = options == nothing ? Mongoc.BSON() : deepcopy(options)
     err_ref = Ref{BSONError}()
     ok = mongoc_client_session_append(session.handle, handle(result), err_ref)
     if !ok

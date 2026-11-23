@@ -103,6 +103,20 @@ using OrderedCollections
         @test bson["ah"] == "Key1"
     end
 
+    @testset "Strings with embedded NUL" begin
+        # BSON corpus "Embedded nulls" cases for string and code
+        bson = Mongoc.read_bson(hex2bytes("190000000261000D0000006162006261620062616261620000"))[1]
+        @test bson["a"] == "ab\0bab\0babab"
+        bson = Mongoc.read_bson(hex2bytes("190000000D61000D0000006162006261620062616261620000"))[1]
+        @test bson["a"].code == "ab\0bab\0babab"
+
+        bson = Mongoc.BSON()
+        bson["s"] = "a\0b"
+        bson["sub"] = SubString("-a\0b-", 2, 4)
+        @test Mongoc.as_json(bson) == """{ "s" : "a\\u0000b", "sub" : "a\\u0000b" }"""
+        @test bson["s"] == bson["sub"] == "a\0b"
+    end
+
     @testset "UUID support" begin
         uuid = UUID("a1f18b06-2210-499b-8313-28e69090511f")
         uuid_bytes = [0xa1, 0xf1, 0x8b, 0x06, 0x22, 0x10, 0x49, 0x9b, 0x83, 0x13, 0x28, 0xe6, 0x90, 0x90, 0x51, 0x1f]
