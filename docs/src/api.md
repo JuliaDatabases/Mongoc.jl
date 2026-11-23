@@ -12,6 +12,7 @@ Mongoc.BSONUnsupported
 Mongoc.as_json
 Mongoc.as_dict
 Mongoc.get_array
+Mongoc.deduplicate!
 Mongoc.read_bson
 Mongoc.write_bson
 Mongoc.read_next_bson

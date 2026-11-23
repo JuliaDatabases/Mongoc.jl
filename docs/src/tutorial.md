@@ -198,7 +198,16 @@ To convert a BSON document to a Dictionary, use `Mongoc.as_dict`.
 
 ```julia
 julia> Mongoc.as_dict(document)
-Dict{Any,Any} with 1 entry:
+OrderedDict{String, Any} with 1 entry:
+  "hey" => "you"
+```
+
+The result is an `OrderedDict` by default, which preserves the order of the BSON document and is also used for
+nested documents. Pass `dicttype` to get another dictionary type:
+
+```julia
+julia> Mongoc.as_dict(document; dicttype = Dict)
+Dict{String, Any} with 1 entry:
   "hey" => "you"
 ```
 

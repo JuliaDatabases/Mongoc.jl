@@ -5,7 +5,7 @@ import Libdl
 import NetworkOptions
 
 import Base.UUID
-using Dates, DecFP, Serialization
+using Dates, DecFP, Serialization, OrderedCollections
 
 #
 # utility functions for date conversion
